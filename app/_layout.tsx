@@ -13,6 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 import Onboarding from "@/components/Onboarding";
+import { UserProvider } from "@/lib/auth/UserContext";
 
 // Keep the splash screen visible while we check onboarding status
 SplashScreen.preventAutoHideAsync();
@@ -58,8 +59,10 @@ export default function RootLayout() {
   if (!isOnboardingComplete) {
     return (
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Onboarding onComplete={() => setIsOnboardingComplete(true)} />
-        <StatusBar style="auto" />
+        <UserProvider>
+          <Onboarding onComplete={() => setIsOnboardingComplete(true)} />
+          <StatusBar style="auto" />
+        </UserProvider>
       </ThemeProvider>
     );
   }
@@ -67,11 +70,13 @@ export default function RootLayout() {
   // Normal app flow if onboarding is complete
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
+      <UserProvider>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+        <StatusBar style="auto" />
+      </UserProvider>
     </ThemeProvider>
   );
 }
