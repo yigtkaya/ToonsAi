@@ -18,70 +18,76 @@ import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
+
+import { useUser } from "@/lib/auth/UserContext";
+import { showPaywall } from "@/lib/navigation/showPaywall";
 
 // Define the anime style options
 interface AnimeStyle {
   id: string;
   name: string;
   image: ImageSourcePropType;
+  requiresPro: boolean;
 }
 
 const animeStyles: AnimeStyle[] = [
   {
-    id: "gibura",
-    name: "Gibura",
+    id: "anime",
+    name: "Anime (Japanese Style)",
     image: {
-      uri: "https://via.placeholder.com/100x100/dbc6a2/FFFFFF?text=Gibura",
+      uri: "https://via.placeholder.com/100x100/dbc6a2/FFFFFF?text=Anime",
     },
+    requiresPro: true,
   },
   {
-    id: "naruko",
-    name: "Naruko",
+    id: "pixar",
+    name: "Pixar / 3D Animation",
     image: {
-      uri: "https://via.placeholder.com/100x100/7f5c3c/FFFFFF?text=Naruko",
+      uri: "https://via.placeholder.com/100x100/7f5c3c/FFFFFF?text=Pixar",
     },
+    requiresPro: true,
   },
   {
-    id: "titanya",
-    name: "Titanya",
+    id: "western_comic",
+    name: "Western Comic Style",
     image: {
-      uri: "https://via.placeholder.com/100x100/f1e4c6/333333?text=Titanya",
+      uri: "https://via.placeholder.com/100x100/f1e4c6/333333?text=Comic",
     },
+    requiresPro: true,
   },
   {
-    id: "dragoboru",
-    name: "Dragoboru",
+    id: "vintage_disney",
+    name: "Vintage Disney Style",
     image: {
-      uri: "https://via.placeholder.com/100x100/b38a61/FFFFFF?text=Dragoboru",
+      uri: "https://via.placeholder.com/100x100/b38a61/FFFFFF?text=Disney",
     },
+    requiresPro: true,
   },
   {
-    id: "detektif",
-    name: "Detektif",
+    id: "flat_vector",
+    name: "Flat Modern Vector Style",
     image: {
-      uri: "https://via.placeholder.com/100x100/e0d0b3/333333?text=Detektif",
+      uri: "https://via.placeholder.com/100x100/e0d0b3/333333?text=Vector",
     },
+    requiresPro: true,
   },
   {
-    id: "theslayer",
-    name: "TheSlayer",
+    id: "sketchbook",
+    name: "Sketchbook / Pencil-Doodle Style",
     image: {
-      uri: "https://via.placeholder.com/100x100/7f5c3c/FFFFFF?text=TheSlayer",
+      uri: "https://via.placeholder.com/100x100/7f5c3c/FFFFFF?text=Sketch",
     },
+    requiresPro: true,
   },
   {
-    id: "catrobo",
-    name: "CatRobo",
+    id: "ghibli",
+    name: "Ghibli",
     image: {
-      uri: "https://via.placeholder.com/100x100/dbc6a2/FFFFFF?text=CatRobo",
+      uri: "https://via.placeholder.com/100x100/dbc6a2/FFFFFF?text=Ghibli",
     },
-  },
-  {
-    id: "pirates",
-    name: "Pirates",
-    image: {
-      uri: "https://via.placeholder.com/100x100/b38a61/FFFFFF?text=Pirates",
-    },
+    requiresPro: false,
   },
 ];
 
@@ -97,6 +103,7 @@ export const PhotoToAnime = () => {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? "light";
   const colors = Colors[colorScheme];
+  const { hasSubscription } = useUser();
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
@@ -116,8 +123,21 @@ export const PhotoToAnime = () => {
     }
   };
 
-  const handleStyleSelect = (styleId: string) => {
-    setSelectedStyle(styleId);
+  const handleStyleSelect = async (style: AnimeStyle) => {
+    // For non-subscribers, show paywall when they try to access pro styles
+    if (!hasSubscription && style.requiresPro) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      // Show paywall when user tries to select a PRO style
+      await showPaywall(true); // Force show the paywall
+      return;
+    }
+
+    // Only provide haptic feedback for actual style changes
+    if (selectedStyle !== style.id) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    setSelectedStyle(style.id);
   };
 
   const generateImage = () => {
@@ -275,22 +295,37 @@ export const PhotoToAnime = () => {
       <View style={styles.stylesSection}>
         <ThemedText style={styles.sectionTitle}>Choose a Style:</ThemedText>
         <View style={styles.stylesGrid}>
-          {animeStyles.map((style) => (
-            <TouchableOpacity
-              key={style.id}
-              style={[
-                styles.styleItem,
-                selectedStyle === style.id && {
-                  borderColor: colors.tint,
-                  borderWidth: 2,
-                },
-              ]}
-              onPress={() => handleStyleSelect(style.id)}
-            >
-              <Image source={style.image} style={styles.styleImage} />
-              <ThemedText style={styles.styleName}>{style.name}</ThemedText>
-            </TouchableOpacity>
-          ))}
+          {animeStyles.map((style) => {
+            const isSelected = selectedStyle === style.id;
+            const isPro = style.requiresPro;
+            const needsBlur = isPro && !hasSubscription;
+
+            return (
+              <TouchableOpacity
+                key={style.id}
+                style={[
+                  styles.styleItem,
+                  isSelected && {
+                    borderColor: colors.tint,
+                    borderWidth: 2,
+                  },
+                ]}
+                onPress={() => handleStyleSelect(style)}
+              >
+                <View style={styles.styleImageContainer}>
+                  <Image source={style.image} style={styles.styleImage} />
+                  {needsBlur && (
+                    <BlurView intensity={7} style={styles.blurOverlay}>
+                      <View style={styles.proTag}>
+                        <Text style={styles.proTagText}>PRO</Text>
+                      </View>
+                    </BlurView>
+                  )}
+                </View>
+                <ThemedText style={styles.styleName}>{style.name}</ThemedText>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -385,6 +420,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e0d0b3",
   },
+  styleImageContainer: {
+    position: "relative",
+    width: "100%",
+    height: 70,
+  },
   styleImage: {
     width: "100%",
     height: 70,
@@ -441,5 +481,28 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 30,
     marginTop: 10,
+  },
+  blurOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.1)",
+  },
+  proTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: "#7f5c3c",
+    borderRadius: 20,
+  },
+  proTagText: {
+    color: "#FFF",
+    fontWeight: "bold",
+    fontSize: 12,
   },
 });

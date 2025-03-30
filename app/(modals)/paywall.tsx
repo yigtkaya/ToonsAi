@@ -8,6 +8,7 @@ import {
   ScrollView,
   Image,
   Alert,
+  ImageBackground,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -58,6 +59,7 @@ export default function PaywallScreen() {
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usingMockData, setUsingMockData] = useState(false);
+  const [showCloseButton, setShowCloseButton] = useState(false);
   const router = useRouter();
   const colorScheme = useColorScheme() ?? "light";
   const colors = Colors[colorScheme];
@@ -66,7 +68,24 @@ export default function PaywallScreen() {
   useEffect(() => {
     // Fetch subscription packages
     fetchPackages();
+
+    // Check remote config for close button visibility
+    checkCloseButtonConfig();
   }, []);
+
+  const checkCloseButtonConfig = async () => {
+    try {
+      if (true) {
+        // If configuration allows close button, show it after 3 seconds
+        setTimeout(() => {
+          setShowCloseButton(true);
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Error checking close button config:", error);
+      // Default to not showing the close button on error
+    }
+  };
 
   const fetchPackages = async () => {
     try {
@@ -147,6 +166,7 @@ export default function PaywallScreen() {
   };
 
   const handleClose = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.back();
   };
 
@@ -204,163 +224,196 @@ export default function PaywallScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={["top", "right", "left"]}>
-        <ActivityIndicator size="large" color="#666" />
-      </SafeAreaView>
+      <ImageBackground
+        source={require("@/assets/images/paywall_background.png")}
+        style={styles.container}
+        resizeMode="cover"
+      >
+        <SafeAreaView style={styles.safeArea} edges={["top", "right", "left"]}>
+          <ActivityIndicator size="large" color="#666" />
+        </SafeAreaView>
+      </ImageBackground>
     );
   }
 
   if (hasSubscription) {
     return (
-      <SafeAreaView style={styles.container} edges={["top", "right", "left"]}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.closeButton}
-          >
-            <Ionicons name="close" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
+      <ImageBackground
+        source={require("@/assets/images/paywall_background.png")}
+        style={styles.container}
+        resizeMode="cover"
+      >
+        <SafeAreaView style={styles.safeArea} edges={["top", "right", "left"]}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
 
-        <View
-          style={[
-            styles.alreadySubscribedContainer,
-            { paddingBottom: insets.bottom },
-          ]}
-        >
-          <Ionicons name="checkmark-circle" size={80} color="#7f5c3c" />
-          <Text style={styles.alreadySubscribedTitle}>
-            You're already subscribed!
-          </Text>
-          <Text style={styles.alreadySubscribedText}>
-            You already have access to all premium features of ToonsAI.
-          </Text>
-          <TouchableOpacity style={styles.button} onPress={() => router.back()}>
-            <Text style={styles.buttonText}>Continue</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+          <View
+            style={[
+              styles.alreadySubscribedContainer,
+              { paddingBottom: insets.bottom },
+            ]}
+          >
+            <Ionicons name="checkmark-circle" size={80} color="#7f5c3c" />
+            <Text style={styles.alreadySubscribedTitle}>
+              You're already subscribed!
+            </Text>
+            <Text style={styles.alreadySubscribedText}>
+              You already have access to all premium features of ToonsAI.
+            </Text>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.buttonText}>Continue</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </ImageBackground>
     );
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: "#121212" }]}
-      edges={["top", "right", "left"]}
+    <ImageBackground
+      source={require("@/assets/images/paywall_background.png")}
+      style={styles.container}
+      resizeMode="cover"
     >
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom }}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.closeButton}
-          >
-            <Ionicons name="close" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        {usingMockData && (
-          <View style={styles.devModeContainer}>
-            <Text style={styles.devModeText}>
-              Development Mode: Using mock subscription data
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.contentContainer}>
-          <Text style={styles.title}>Upgrade to ToonsAI Pro</Text>
-
-          <View style={styles.featuresContainer}>
-            {features.map((feature, index) => (
-              <View key={index} style={styles.featureItem}>
-                <View
-                  style={[styles.iconCircle, { backgroundColor: "#7f5c3c" }]}
-                >
-                  <Ionicons name={feature.icon as any} size={20} color="#FFF" />
-                </View>
-                <ThemedText style={styles.featureText}>
-                  {feature.text}
-                </ThemedText>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.packagesContainer}>
-            {packages.map((pkg) => {
-              const details = getPackageDetails(pkg);
-              const isSelected = selectedPackage === pkg.identifier;
-
-              return (
-                <TouchableOpacity
-                  key={pkg.identifier}
-                  style={[
-                    styles.packageItem,
-                    isSelected && styles.selectedPackage,
-                    details.popular && styles.popularPackage,
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedPackage(pkg.identifier);
-                  }}
-                >
-                  {details.popular && (
-                    <View style={styles.popularBadge}>
-                      <Text style={styles.popularBadgeText}>POPULAR</Text>
-                    </View>
-                  )}
-
-                  <Text style={styles.packageTitle}>{details.title}</Text>
-                  <Text style={styles.packagePrice}>{details.price}</Text>
-                  <Text style={styles.packageSubtitle}>{details.subtitle}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {error && <Text style={styles.errorText}>{error}</Text>}
-
-          <TouchableOpacity
-            style={[styles.purchaseButton, purchasing && styles.disabledButton]}
-            onPress={handlePurchase}
-            disabled={purchasing || !selectedPackage}
-          >
-            {purchasing ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.purchaseButtonText}>
-                {selectedPackage?.includes("lifetime")
-                  ? "Purchase Lifetime Access"
-                  : "Start Subscription"}
-              </Text>
+      <SafeAreaView style={styles.safeArea} edges={["top", "right", "left"]}>
+        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom }}>
+          <View style={styles.header}>
+            {showCloseButton && (
+              <TouchableOpacity
+                onPress={handleClose}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
-
-          <Text style={styles.termsText}>
-            Payment will be charged to your Apple ID account at the confirmation
-            of purchase. Subscription automatically renews unless it is canceled
-            at least 24 hours before the end of the current period. Your account
-            will be charged for renewal within 24 hours prior to the end of the
-            current period. You can manage and cancel your subscriptions by
-            going to your account settings on the App Store after purchase.
-          </Text>
+          </View>
 
           {usingMockData && (
-            <Text
-              style={[styles.devModeFooter, { marginBottom: insets.bottom }]}
-            >
-              Development Mode: Payments are simulated and no actual charges
-              will be made.
-            </Text>
+            <View style={styles.devModeContainer}>
+              <Text style={styles.devModeText}>
+                Development Mode: Using mock subscription data
+              </Text>
+            </View>
           )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+
+          <View style={styles.contentContainer}>
+            <Text style={styles.title}>Upgrade to ToonsAI Pro</Text>
+
+            <View style={styles.featuresContainer}>
+              {features.map((feature, index) => (
+                <View key={index} style={styles.featureItem}>
+                  <View
+                    style={[styles.iconCircle, { backgroundColor: "#7f5c3c" }]}
+                  >
+                    <Ionicons
+                      name={feature.icon as any}
+                      size={20}
+                      color="#FFF"
+                    />
+                  </View>
+                  <ThemedText style={styles.featureText}>
+                    {feature.text}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.packagesContainer}>
+              {packages.map((pkg) => {
+                const details = getPackageDetails(pkg);
+                const isSelected = selectedPackage === pkg.identifier;
+
+                return (
+                  <TouchableOpacity
+                    key={pkg.identifier}
+                    style={[
+                      styles.packageItem,
+                      isSelected && styles.selectedPackage,
+                      details.popular && styles.popularPackage,
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedPackage(pkg.identifier);
+                    }}
+                  >
+                    {details.popular && (
+                      <View style={styles.popularBadge}>
+                        <Text style={styles.popularBadgeText}>POPULAR</Text>
+                      </View>
+                    )}
+
+                    <Text style={styles.packageTitle}>{details.title}</Text>
+                    <Text style={styles.packagePrice}>{details.price}</Text>
+                    <Text style={styles.packageSubtitle}>
+                      {details.subtitle}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {error && <Text style={styles.errorText}>{error}</Text>}
+
+            <TouchableOpacity
+              style={[
+                styles.purchaseButton,
+                purchasing && styles.disabledButton,
+              ]}
+              onPress={handlePurchase}
+              disabled={purchasing || !selectedPackage}
+            >
+              {purchasing ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.purchaseButtonText}>
+                  {selectedPackage?.includes("lifetime")
+                    ? "Purchase Lifetime Access"
+                    : "Start Subscription"}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <Text style={styles.termsText}>
+              Payment will be charged to your Apple ID account at the
+              confirmation of purchase. Subscription automatically renews unless
+              it is canceled at least 24 hours before the end of the current
+              period. Your account will be charged for renewal within 24 hours
+              prior to the end of the current period. You can manage and cancel
+              your subscriptions by going to your account settings on the App
+              Store after purchase.
+            </Text>
+
+            {usingMockData && (
+              <Text
+                style={[styles.devModeFooter, { marginBottom: insets.bottom }]}
+              >
+                Development Mode: Payments are simulated and no actual charges
+                will be made.
+              </Text>
+            )}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#121212",
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "rgba(18, 18, 18, 0.8)", // Semi-transparent overlay for better text readability
   },
   header: {
     padding: 16,

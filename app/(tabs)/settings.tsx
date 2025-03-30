@@ -79,7 +79,7 @@ export default function SettingsScreen() {
   };
 
   const handleUpgrade = () => {
-    router.push("/paywall");
+    router.push("/(modals)/paywall");
   };
 
   const renderSettingItem = (

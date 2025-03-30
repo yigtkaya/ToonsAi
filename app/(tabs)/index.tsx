@@ -78,7 +78,7 @@ export default function HomeScreen() {
   };
 
   const handleUpgradePress = () => {
-    router.push("/paywall");
+    router.push("/(modals)/paywall");
   };
 
   // Show loading state if user context is loading

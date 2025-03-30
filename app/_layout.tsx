@@ -4,23 +4,19 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack, Tabs } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
-import { View, Platform } from "react-native";
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { Platform } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 import Onboarding from "@/components/Onboarding";
 import { UserProvider } from "@/lib/auth/UserContext";
-import { Colors } from "@/constants/Colors";
+import PaywallController from "@/components/PaywallController";
 
 // Keep the splash screen visible while we check onboarding status
 SplashScreen.preventAutoHideAsync();
@@ -59,78 +55,6 @@ const configureAndroidSystemNavBar = (visible: boolean = true) => {
     }
   }
 };
-
-function TabBarWithInsets() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
-  const insets = useSafeAreaInsets();
-
-  return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          borderTopWidth: 0,
-          elevation: 0,
-          paddingTop: 10,
-          paddingBottom: Platform.OS === "ios" ? 25 : 10,
-          height: "auto",
-          shadowColor: "#000",
-          shadowOffset: {
-            width: 0,
-            height: -2,
-          },
-          shadowOpacity: 0.1,
-          shadowRadius: 2,
-          // Add bottom padding according to insets for Android navigation bar
-          ...Platform.select({
-            android: {
-              paddingBottom: Math.max(10, insets.bottom),
-              height: 60 + Math.max(0, insets.bottom),
-            },
-          }),
-        },
-        tabBarActiveTintColor: colors.tint,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Create",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="sparkles-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="gallery"
-        options={{
-          title: "Gallery",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="images-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "Settings",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      {/* Modal screens hidden from tab bar */}
-      <Tabs.Screen
-        name="paywall"
-        options={{
-          href: null, // hide from tab bar
-        }}
-      />
-    </Tabs>
-  );
-}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -186,7 +110,18 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <SafeAreaProvider>
         <UserProvider>
-          <TabBarWithInsets />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="(modals)/paywall"
+              options={{
+                presentation: "fullScreenModal",
+                animation: "slide_from_bottom",
+                headerShown: false,
+              }}
+            />
+          </Stack>
+          <PaywallController />
           <StatusBar style="auto" />
         </UserProvider>
       </SafeAreaProvider>
