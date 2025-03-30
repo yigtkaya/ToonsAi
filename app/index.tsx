@@ -1,20 +1,20 @@
 import {
-  Image,
   StyleSheet,
-  Platform,
   TouchableOpacity,
   View,
   ActivityIndicator,
-  Alert,
+  ScrollView,
 } from "react-native";
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
-import { HelloWave } from "@/components/HelloWave";
-import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
+import { PhotoToAnime } from "@/components/PhotoToAnime";
 import { useUser } from "@/lib/auth/UserContext";
 import {
   getRemainingGenerations,
@@ -31,6 +31,7 @@ const isUsingPlaceholderKeys =
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     user,
     hasSubscription,
@@ -119,176 +120,129 @@ export default function HomeScreen() {
   }
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
-      headerImage={
-        <Image
-          source={require("@/assets/images/partial-react-logo.png")}
-          style={styles.reactLogo}
-        />
-      }
-    >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">ToonsAI</ThemedText>
-        <HelloWave />
-      </ThemedView>
+    <SafeAreaView style={styles.safeArea} edges={["top", "right", "left"]}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[
+          styles.contentContainer,
+          { paddingBottom: 16 + insets.bottom },
+        ]}
+      >
+        {/* Header with premium badge for premium users */}
+        {hasSubscription && (
+          <View style={styles.header}>
+            <View style={styles.premiumBadge}>
+              <Ionicons name="star" size={14} color="#7f5c3c" />
+              <ThemedText style={styles.premiumText}>PREMIUM</ThemedText>
+            </View>
+          </View>
+        )}
 
-      {isUsingPlaceholderKeys && (
-        <ThemedView style={styles.devModeContainer}>
-          <ThemedText style={styles.devModeText}>
-            Development Mode: Using placeholder subscription data
-          </ThemedText>
-        </ThemedView>
-      )}
+        {/* PhotoToAnime component */}
+        <PhotoToAnime />
 
-      {/* User info section */}
-      <ThemedView style={styles.userContainer}>
-        <View style={styles.userInfoRow}>
-          <ThemedText type="defaultSemiBold">
-            Plan: {subscriptionTier === "pro" ? "Premium" : "Free"}
-          </ThemedText>
+        {/* Upgrade banner for free users only */}
+        {!hasSubscription && (
+          <View style={styles.upgradeBanner}>
+            <View style={styles.usageInfo}>
+              <ThemedText style={styles.usageText}>
+                Daily Usage: {remainingGenerations}/{dailyLimit} images
+              </ThemedText>
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${(remainingGenerations / dailyLimit) * 100}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
 
-          {!hasSubscription && (
+            <ThemedText style={styles.upgradeText}>
+              Get unlimited generations, priority processing, and more styles
+            </ThemedText>
+
             <TouchableOpacity
               style={styles.upgradeButton}
               onPress={handleUpgradePress}
             >
-              <ThemedText style={styles.upgradeButtonText}>Upgrade</ThemedText>
+              <Ionicons
+                name="star"
+                size={16}
+                color="#fff"
+                style={styles.buttonIcon}
+              />
+              <ThemedText style={styles.upgradeButtonText}>
+                Upgrade to Premium
+              </ThemedText>
             </TouchableOpacity>
-          )}
-        </View>
-
-        <ThemedView style={styles.usageContainer}>
-          <ThemedText>
-            Remaining today: {remainingGenerations} / {dailyLimit} cartoons
-          </ThemedText>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${(remainingGenerations / dailyLimit) * 100}%`,
-                  backgroundColor:
-                    subscriptionTier === "pro" ? "#4CAF50" : "#2196F3",
-                },
-              ]}
-            />
           </View>
-        </ThemedView>
-      </ThemedView>
-
-      {/* Main content section */}
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Generate Cartoon</ThemedText>
-        <ThemedText>
-          Enter a prompt below to generate a cartoon in the style you want.
-        </ThemedText>
-        {/* Prompt input and generation button to be added here */}
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Save & Share</ThemedText>
-        <ThemedText>
-          Save your generated cartoons to your device or share them with
-          friends.
-        </ThemedText>
-      </ThemedView>
-
-      {!hasSubscription && (
-        <ThemedView style={[styles.stepContainer, styles.upgradeContainer]}>
-          <ThemedText type="subtitle">Upgrade to Premium</ThemedText>
-          <ThemedText>
-            Get more daily generations, higher quality images, and priority
-            processing.
-          </ThemedText>
-          <TouchableOpacity
-            style={styles.largeUpgradeButton}
-            onPress={handleUpgradePress}
-          >
-            <Ionicons name="star" size={18} color="#FFF" />
-            <ThemedText style={styles.largeUpgradeButtonText}>
-              Upgrade Now
-            </ThemedText>
-          </TouchableOpacity>
-        </ThemedView>
-      )}
-    </ParallaxScrollView>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  safeArea: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
+  container: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 16,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
     marginBottom: 16,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: "absolute",
+  upgradeBanner: {
+    backgroundColor: "rgba(179, 138, 97, 0.15)",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 10,
   },
-  userContainer: {
-    gap: 8,
-    marginBottom: 16,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: "rgba(200, 200, 200, 0.1)",
+  usageInfo: {
+    marginBottom: 12,
   },
-  userInfoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  upgradeButton: {
-    backgroundColor: "#2962FF",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-  },
-  upgradeButtonText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  usageContainer: {
-    gap: 4,
+  usageText: {
+    fontSize: 14,
+    marginBottom: 8,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: "rgba(150, 150, 150, 0.2)",
-    borderRadius: 4,
+    height: 6,
+    backgroundColor: "rgba(224, 208, 179, 0.5)",
+    borderRadius: 3,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    borderRadius: 4,
+    backgroundColor: "#b38a61",
+    borderRadius: 3,
   },
-  upgradeContainer: {
-    backgroundColor: "rgba(41, 98, 255, 0.1)",
-    padding: 16,
-    borderRadius: 8,
-    marginTop: 8,
+  upgradeText: {
+    fontSize: 14,
+    marginBottom: 12,
   },
-  largeUpgradeButton: {
+  upgradeButton: {
     backgroundColor: "#2962FF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 12,
+    borderRadius: 25,
   },
-  largeUpgradeButtonText: {
+  buttonIcon: {
+    marginRight: 8,
+  },
+  upgradeButtonText: {
     color: "#FFFFFF",
-    marginLeft: 8,
-    fontSize: 16,
     fontWeight: "bold",
   },
   loadingContainer: {
@@ -322,16 +276,20 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontWeight: "bold",
   },
-  devModeContainer: {
-    padding: 10,
-    backgroundColor: "rgba(26, 35, 126, 0.7)",
-    borderRadius: 8,
-    marginBottom: 16,
+  premiumBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(219, 198, 162, 0.25)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#b38a61",
   },
-  devModeText: {
-    color: "#fff",
-    fontSize: 14,
+  premiumText: {
+    color: "#7f5c3c",
     fontWeight: "bold",
-    textAlign: "center",
+    fontSize: 12,
+    marginLeft: 4,
   },
 });

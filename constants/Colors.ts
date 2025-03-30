@@ -4,45 +4,48 @@
  */
 
 /**
- * Studio Ghibli inspired color palette for the app.
- * Based on the soft, natural, and whimsical colors often found in Ghibli films.
+ * Earthy tones inspired color palette for the app.
+ * Based on warm, natural colors that create a cozy and inviting atmosphere.
  */
 
-// Ghibli inspired colors
-const ghibliBlue = "#7BB5D6"; // Sky blue from "Spirited Away"
-const ghibliGreen = "#86A872"; // Forest green from "Princess Mononoke"
-const ghibliBeige = "#F7E5CC"; // Warm beige from "Totoro" backgrounds
-const ghibliPink = "#E5BACE"; // Soft pink from "Howl's Moving Castle"
-const ghibliYellow = "#F0C869"; // Warm yellow from "Kiki's Delivery Service"
-const ghibliCharcoal = "#303842"; // Dark charcoal from night scenes
+// Earthy tones palette
+const lightBeige = "#dbc6a2"; // Light Beige - main background color
+const warmBrown = "#7f5c3c"; // Warm Brown - accent and text color
+const paleCream = "#f1e4c6"; // Pale Cream - lighter background
+const sandyTan = "#b38a61"; // Sandy Tan - primary interactive elements
+const softBeige = "#e0d0b3"; // Soft Beige - secondary elements
+
+// Darker variants for dark mode
+const darkBrown = "#3a2a1c"; // Dark Brown for backgrounds in dark mode
+const deepTan = "#634324"; // Deep Tan for darker UI elements
 
 export const Colors = {
   light: {
-    text: "#333333",
-    background: ghibliBeige,
-    tint: ghibliBlue,
-    secondaryTint: ghibliGreen,
-    accent: ghibliPink,
-    highlight: ghibliYellow,
-    icon: "#687076",
-    tabIconDefault: "#687076",
-    tabIconSelected: ghibliBlue,
-    buttonBackground: ghibliBlue,
+    text: "#3a2a1c", // Dark text for readability
+    background: paleCream,
+    tint: sandyTan,
+    secondaryTint: warmBrown,
+    accent: softBeige,
+    highlight: lightBeige,
+    icon: "#7f5c3c",
+    tabIconDefault: "#997b59",
+    tabIconSelected: warmBrown,
+    buttonBackground: sandyTan,
     buttonText: "#FFFFFF",
     cardBackground: "#FFFFFF",
   },
   dark: {
-    text: "#ECEDEE",
-    background: ghibliCharcoal,
-    tint: ghibliBlue,
-    secondaryTint: ghibliGreen,
-    accent: ghibliPink,
-    highlight: ghibliYellow,
-    icon: "#9BA1A6",
-    tabIconDefault: "#9BA1A6",
-    tabIconSelected: ghibliBlue,
-    buttonBackground: ghibliBlue,
+    text: "#f1e4c6", // Light text for dark mode
+    background: darkBrown,
+    tint: sandyTan,
+    secondaryTint: lightBeige,
+    accent: softBeige,
+    highlight: warmBrown,
+    icon: "#e0d0b3",
+    tabIconDefault: "#b38a61",
+    tabIconSelected: sandyTan,
+    buttonBackground: sandyTan,
     buttonText: "#FFFFFF",
-    cardBackground: "#24292D",
+    cardBackground: deepTan,
   },
 };

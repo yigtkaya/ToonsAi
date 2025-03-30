@@ -7,14 +7,20 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
-  SafeAreaView,
   Alert,
 } from "react-native";
-import { router } from "expo-router";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Purchases, { PurchasesPackage } from "react-native-purchases";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { ThemedText } from "@/components/ThemedText";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 
 import { useUser } from "@/lib/auth/UserContext";
 import { getPackages, purchasePackage } from "@/lib/revenuecat/client";
@@ -31,6 +37,19 @@ const isUsingPlaceholderKeys =
   (process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY || "") ===
     "placeholder_android_key";
 
+interface PlanFeature {
+  icon: string;
+  text: string;
+}
+
+const features: PlanFeature[] = [
+  { icon: "infinite", text: "Unlimited image generations" },
+  { icon: "flash", text: "Priority processing" },
+  { icon: "brush", text: "Access to all anime styles" },
+  { icon: "cloud-download", text: "HD downloads" },
+  { icon: "ban", text: "Ad-free experience" },
+];
+
 export default function PaywallScreen() {
   const { hasSubscription, checkSubscription } = useUser();
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
@@ -39,6 +58,10 @@ export default function PaywallScreen() {
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usingMockData, setUsingMockData] = useState(false);
+  const router = useRouter();
+  const colorScheme = useColorScheme() ?? "light";
+  const colors = Colors[colorScheme];
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     // Fetch subscription packages
@@ -181,7 +204,7 @@ export default function PaywallScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top", "right", "left"]}>
         <ActivityIndicator size="large" color="#666" />
       </SafeAreaView>
     );
@@ -189,7 +212,7 @@ export default function PaywallScreen() {
 
   if (hasSubscription) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top", "right", "left"]}>
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -199,8 +222,13 @@ export default function PaywallScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.alreadySubscribedContainer}>
-          <Ionicons name="checkmark-circle" size={80} color="#4CAF50" />
+        <View
+          style={[
+            styles.alreadySubscribedContainer,
+            { paddingBottom: insets.bottom },
+          ]}
+        >
+          <Ionicons name="checkmark-circle" size={80} color="#7f5c3c" />
           <Text style={styles.alreadySubscribedTitle}>
             You're already subscribed!
           </Text>
@@ -216,8 +244,11 @@ export default function PaywallScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: "#121212" }]}
+      edges={["top", "right", "left"]}
+    >
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom }}>
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -239,21 +270,18 @@ export default function PaywallScreen() {
           <Text style={styles.title}>Upgrade to ToonsAI Pro</Text>
 
           <View style={styles.featuresContainer}>
-            <FeatureItem
-              icon="infinite"
-              title={`${PRO_DAILY_LIMIT} Cartoons Daily`}
-              description={`Instead of ${FREE_DAILY_LIMIT} with free plan`}
-            />
-            <FeatureItem
-              icon="trending-up"
-              title="Higher Quality Images"
-              description="Generate more detailed cartoons"
-            />
-            <FeatureItem
-              icon="flash"
-              title="Priority Generation"
-              description="Your requests go to the front of the queue"
-            />
+            {features.map((feature, index) => (
+              <View key={index} style={styles.featureItem}>
+                <View
+                  style={[styles.iconCircle, { backgroundColor: "#7f5c3c" }]}
+                >
+                  <Ionicons name={feature.icon as any} size={20} color="#FFF" />
+                </View>
+                <ThemedText style={styles.featureText}>
+                  {feature.text}
+                </ThemedText>
+              </View>
+            ))}
           </View>
 
           <View style={styles.packagesContainer}>
@@ -316,7 +344,9 @@ export default function PaywallScreen() {
           </Text>
 
           {usingMockData && (
-            <Text style={styles.devModeFooter}>
+            <Text
+              style={[styles.devModeFooter, { marginBottom: insets.bottom }]}
+            >
               Development Mode: Payments are simulated and no actual charges
               will be made.
             </Text>
@@ -324,26 +354,6 @@ export default function PaywallScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-interface FeatureItemProps {
-  icon: string;
-  title: string;
-  description: string;
-}
-
-function FeatureItem({ icon, title, description }: FeatureItemProps) {
-  return (
-    <View style={styles.featureItem}>
-      <View style={styles.featureIconContainer}>
-        <Ionicons name={icon as any} size={24} color="#fff" />
-      </View>
-      <View style={styles.featureTextContainer}>
-        <Text style={styles.featureTitle}>{title}</Text>
-        <Text style={styles.featureDescription}>{description}</Text>
-      </View>
-    </View>
   );
 }
 
@@ -378,27 +388,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
-  featureIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#2962FF",
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
   },
-  featureTextContainer: {
-    flex: 1,
-  },
-  featureTitle: {
+  featureText: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 4,
-  },
-  featureDescription: {
-    fontSize: 14,
-    color: "#aaa",
   },
   packagesContainer: {
     flexDirection: "row",
@@ -416,21 +415,21 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   selectedPackage: {
-    borderColor: "#2962FF",
+    borderColor: "#b38a61",
   },
   popularPackage: {
-    backgroundColor: "#1A237E",
+    backgroundColor: "#3b2a1a",
   },
   popularBadge: {
     position: "absolute",
     top: -10,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: "#FFC107",
+    backgroundColor: "#dbc6a2",
     borderRadius: 12,
   },
   popularBadgeText: {
-    color: "#000",
+    color: "#3b2a1a",
     fontSize: 10,
     fontWeight: "bold",
   },
@@ -452,7 +451,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   purchaseButton: {
-    backgroundColor: "#2962FF",
+    backgroundColor: "#7f5c3c",
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -467,7 +466,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   errorText: {
-    color: "#FF5252",
+    color: "#cc6b5a",
     marginBottom: 10,
     textAlign: "center",
   },
@@ -478,7 +477,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   button: {
-    backgroundColor: "#2962FF",
+    backgroundColor: "#7f5c3c",
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -510,7 +509,7 @@ const styles = StyleSheet.create({
   },
   devModeContainer: {
     padding: 10,
-    backgroundColor: "rgba(26, 35, 126, 0.7)",
+    backgroundColor: "rgba(127, 92, 60, 0.7)",
     marginHorizontal: 20,
     borderRadius: 8,
     marginBottom: 16,
