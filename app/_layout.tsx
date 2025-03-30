@@ -120,6 +120,20 @@ export default function RootLayout() {
                 headerShown: false,
               }}
             />
+            <Stack.Screen
+              name="image-generator"
+              options={{
+                headerShown: true,
+                animation: "slide_from_right",
+              }}
+            />
+            <Stack.Screen
+              name="api-test"
+              options={{
+                headerShown: true,
+                animation: "slide_from_right",
+              }}
+            />
           </Stack>
           <PaywallController />
           <StatusBar style="auto" />

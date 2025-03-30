@@ -81,6 +81,14 @@ export default function HomeScreen() {
     router.push("/(modals)/paywall");
   };
 
+  const handleImageGeneratorPress = () => {
+    router.push("/image-generator");
+  };
+
+  const handleApiTestPress = () => {
+    router.push("/api-test");
+  };
+
   // Show loading state if user context is loading
   if (userLoading) {
     return (
@@ -180,6 +188,43 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Test buttons section */}
+        <View style={styles.testSection}>
+          <ThemedText style={styles.testSectionTitle}>
+            Development Tools
+          </ThemedText>
+
+          <TouchableOpacity
+            style={styles.testButton}
+            onPress={handleImageGeneratorPress}
+          >
+            <Ionicons
+              name="image-outline"
+              size={20}
+              color="#fff"
+              style={styles.buttonIcon}
+            />
+            <ThemedText style={styles.testButtonText}>
+              AI Image Generator
+            </ThemedText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.testButton, { backgroundColor: "#5c6bc0" }]}
+            onPress={handleApiTestPress}
+          >
+            <Ionicons
+              name="code-outline"
+              size={20}
+              color="#fff"
+              style={styles.buttonIcon}
+            />
+            <ThemedText style={styles.testButtonText}>
+              API Testing Tools
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -291,5 +336,34 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 12,
     marginLeft: 4,
+  },
+  testSection: {
+    marginTop: 24,
+    backgroundColor: "#f0f4f8",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  testSectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 12,
+    color: "#333",
+  },
+  testButton: {
+    backgroundColor: "#2ecc71",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  testButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
