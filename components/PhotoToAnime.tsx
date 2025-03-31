@@ -23,6 +23,8 @@ import * as Haptics from "expo-haptics";
 
 import { useUser } from "@/lib/auth/UserContext";
 import { showPaywall } from "@/lib/navigation/showPaywall";
+import LargeImageRenderer from "./LargeImageRenderer";
+import { generateImage as geminiGenerateImage } from "@/lib/api/gemini";
 
 // Define the anime style options
 interface AnimeStyle {
@@ -112,7 +114,7 @@ export const PhotoToAnime = () => {
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1,
@@ -140,18 +142,36 @@ export const PhotoToAnime = () => {
     setSelectedStyle(style.id);
   };
 
-  const generateImage = () => {
-    if (!selectedStyle) return;
+  const generateImage = async () => {
+    if (!selectedImage || !selectedStyle) return;
 
-    // This would be replaced with actual API call
     setIsGenerating(true);
-    console.log(`Generating image with style: ${selectedStyle}`);
 
-    // For demo purposes, just show a result after a delay
-    setTimeout(() => {
-      setResultImage("https://via.placeholder.com/400x400/dbc6a2/FFFFFF"); // Placeholder result
+    try {
+      // Generate a prompt based on the selected style
+      const style = animeStyles.find((s) => s.id === selectedStyle);
+      const styleName = style ? style.name : "cartoon";
+
+      // Create the prompt for the Gemini API
+      const prompt = `Transform this photo into a ${styleName} style animated character. Make it appealing and professional looking.`;
+      console.log(`Generating image with style: ${styleName}`);
+
+      // Call the Gemini API with our prompt
+      const generatedImageUri = await geminiGenerateImage(
+        selectedImage,
+        prompt
+      );
+
+      setResultImage(generatedImageUri);
+    } catch (error) {
+      console.error("Failed to generate image:", error);
+      Alert.alert(
+        "Generation Failed",
+        "We couldn't generate your image. Please try again."
+      );
+    } finally {
       setIsGenerating(false);
-    }, 2000);
+    }
   };
 
   // Save the generated image to local storage
@@ -204,8 +224,8 @@ export const PhotoToAnime = () => {
         </View>
 
         <View style={styles.resultContainer}>
-          <Image
-            source={{ uri: resultImage }}
+          <LargeImageRenderer
+            source={resultImage}
             style={styles.resultImage}
             resizeMode="contain"
           />

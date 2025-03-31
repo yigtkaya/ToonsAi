@@ -157,36 +157,43 @@ export const generateImage = async (
     // Due to issues with file URIs on Android, we'll return the raw data URL directly
     // This is more reliable across platforms
     const responseMimeType = response.data.mime_type || 'image/jpeg';
+    
+    // Check if the image is too large for data URL handling (over 1MB)
+    if (response.data.image.length > 1000000) {
+      console.log(`Image is large (${response.data.image.length} bytes), saving to file`);
+      
+      // Save large images to file to avoid rendering issues
+      const fileExtension = responseMimeType.includes('png') ? '.png' : '.jpg';
+      const filename = `gemini_image_${Date.now()}${fileExtension}`;
+      const filePath = `${FileSystem.cacheDirectory}${filename}`;
+      
+      try {
+        await FileSystem.writeAsStringAsync(filePath, response.data.image, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        console.log(`Large image saved to file: ${filePath}`);
+        return filePath;
+      } catch (fileError) {
+        console.error('Failed to save large image to file:', fileError);
+        // Continue to data URL as fallback
+      }
+    }
+    
+    // For smaller images or if file saving failed, use data URL
     const imageDataUrl = `data:${responseMimeType};base64,${response.data.image}`;
     
     console.log(`Created data URL (length: ${imageDataUrl.length})`);
+    console.log(`Image MIME type: ${responseMimeType}`);
+    
+    // Validate that the base64 data is valid
+    const isValidBase64 = response.data.image && /^[A-Za-z0-9+/=]+$/.test(response.data.image);
+    if (!isValidBase64) {
+      console.warn('Warning: Generated image may contain invalid base64 characters');
+    }
+    
     return imageDataUrl;
     
-    /* Disabled file saving due to Android issues
-    // For Gemini images, always save to a file - they're generally large
-    // and React Native has better performance with file URIs than with data URLs
-    const responseMimeType = response.data.mime_type || 'image/jpeg';
-    const fileExtension = responseMimeType.includes('png') ? '.png' : '.jpg';
-    const filename = `gemini_image_${Date.now()}${fileExtension}`;
-    const filePath = `${FileSystem.cacheDirectory}${filename}`;
-    
-    try {
-      await FileSystem.writeAsStringAsync(filePath, response.data.image, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      
-      console.log(`Image saved to file: ${filePath} with mime type: ${responseMimeType}`);
-      return filePath;
-    } catch (fileError) {
-      console.error('Failed to save image to file:', fileError);
-      
-      // Fallback to data URL if file saving fails
-      // Note: This may not work well for very large images
-      const imageDataUrl = `data:${responseMimeType};base64,${response.data.image}`;
-      console.log(`Falling back to data URL (length: ${imageDataUrl.length})`);
-      return imageDataUrl;
-    }
-    */
   } catch (error) {
     console.error('Image generation failed:', error);
     // If this is a server error, log more details

@@ -81,16 +81,8 @@ export default function HomeScreen() {
     router.push("/(modals)/paywall");
   };
 
-  const handleImageGeneratorPress = () => {
-    router.push("/image-generator");
-  };
-
   const handleApiTestPress = () => {
     router.push("/api-test");
-  };
-
-  const handleImageTestPress = () => {
-    router.push("/image-test");
   };
 
   // Show loading state if user context is loading
@@ -200,21 +192,6 @@ export default function HomeScreen() {
           </ThemedText>
 
           <TouchableOpacity
-            style={styles.testButton}
-            onPress={handleImageGeneratorPress}
-          >
-            <Ionicons
-              name="image-outline"
-              size={20}
-              color="#fff"
-              style={styles.buttonIcon}
-            />
-            <ThemedText style={styles.testButtonText}>
-              AI Image Generator
-            </ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={[styles.testButton, { backgroundColor: "#5c6bc0" }]}
             onPress={handleApiTestPress}
           >
@@ -226,21 +203,6 @@ export default function HomeScreen() {
             />
             <ThemedText style={styles.testButtonText}>
               API Testing Tools
-            </ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.testButton, { backgroundColor: "#00796b" }]}
-            onPress={handleImageTestPress}
-          >
-            <Ionicons
-              name="image-outline"
-              size={20}
-              color="#fff"
-              style={styles.buttonIcon}
-            />
-            <ThemedText style={styles.testButtonText}>
-              Image Display Testing
             </ThemedText>
           </TouchableOpacity>
         </View>
