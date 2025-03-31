@@ -15,7 +15,7 @@ import {
   generateText,
   analyzeImage,
   generateImage,
-} from "../lib/api";
+} from "../lib/api/gemini";
 
 const ApiTestComponent = () => {
   const [healthStatus, setHealthStatus] = useState<string | null>(null);

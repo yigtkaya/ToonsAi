@@ -89,6 +89,10 @@ export default function HomeScreen() {
     router.push("/api-test");
   };
 
+  const handleImageTestPress = () => {
+    router.push("/image-test");
+  };
+
   // Show loading state if user context is loading
   if (userLoading) {
     return (
@@ -222,6 +226,21 @@ export default function HomeScreen() {
             />
             <ThemedText style={styles.testButtonText}>
               API Testing Tools
+            </ThemedText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.testButton, { backgroundColor: "#00796b" }]}
+            onPress={handleImageTestPress}
+          >
+            <Ionicons
+              name="image-outline"
+              size={20}
+              color="#fff"
+              style={styles.buttonIcon}
+            />
+            <ThemedText style={styles.testButtonText}>
+              Image Display Testing
             </ThemedText>
           </TouchableOpacity>
         </View>

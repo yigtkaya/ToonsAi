@@ -115,36 +115,85 @@ export const analyzeImage = async (
  * Generate an image based on an input image and prompt
  * @param imageUri The local URI of the source image
  * @param prompt Text prompt to guide image generation
- * @param description Optional pre-generated description
+ * @param description Optional pre-generated description (no longer used)
  * @param mimeType The MIME type of the image (default: 'image/jpeg')
- * @returns Promise with the generated image data
+ * @returns Promise with the URI to the generated image (file URI for large images)
  */
 export const generateImage = async (
   imageUri: string,
   prompt: string,
-  description?: string,
+  description?: string, // keeping parameter for backward compatibility 
   mimeType: string = 'image/jpeg'
 ): Promise<string> => {
   try {
     const base64Image = await imageToBase64(imageUri);
     
+    // Make sure we're only sending fields the server expects
+    // Removed description as it's not needed in the new API implementation
     const requestData: ImageGenerationRequest = {
       image: base64Image,
       mime_type: mimeType,
-      prompt,
-      description: description || null
+      prompt
     };
+    
+    console.log(`Sending image generation request with ${prompt.length > 50 ? prompt.substring(0, 50) + "..." : prompt}`);
     
     const response = await api.post<ImageGenerationResponse>(
       '/gemini/generate-image',
       requestData
     );
     
-    // Create a data URL from the base64 image and mime type
-    const imageDataUrl = `data:${response.data.mime_type || 'image/jpeg'};base64,${response.data.image}`;
+    // Log the response structure to help with debugging
+    console.log('Response structure:', {
+      mimeType: response.data.mime_type,
+      model: response.data.model,
+      imageLength: response.data.image ? response.data.image.length : 0
+    });
+    
+    if (!response.data.image) {
+      throw new Error('No image data returned from the API');
+    }
+    
+    // Due to issues with file URIs on Android, we'll return the raw data URL directly
+    // This is more reliable across platforms
+    const responseMimeType = response.data.mime_type || 'image/jpeg';
+    const imageDataUrl = `data:${responseMimeType};base64,${response.data.image}`;
+    
+    console.log(`Created data URL (length: ${imageDataUrl.length})`);
     return imageDataUrl;
+    
+    /* Disabled file saving due to Android issues
+    // For Gemini images, always save to a file - they're generally large
+    // and React Native has better performance with file URIs than with data URLs
+    const responseMimeType = response.data.mime_type || 'image/jpeg';
+    const fileExtension = responseMimeType.includes('png') ? '.png' : '.jpg';
+    const filename = `gemini_image_${Date.now()}${fileExtension}`;
+    const filePath = `${FileSystem.cacheDirectory}${filename}`;
+    
+    try {
+      await FileSystem.writeAsStringAsync(filePath, response.data.image, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      console.log(`Image saved to file: ${filePath} with mime type: ${responseMimeType}`);
+      return filePath;
+    } catch (fileError) {
+      console.error('Failed to save image to file:', fileError);
+      
+      // Fallback to data URL if file saving fails
+      // Note: This may not work well for very large images
+      const imageDataUrl = `data:${responseMimeType};base64,${response.data.image}`;
+      console.log(`Falling back to data URL (length: ${imageDataUrl.length})`);
+      return imageDataUrl;
+    }
+    */
   } catch (error) {
     console.error('Image generation failed:', error);
+    // If this is a server error, log more details
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error name:', error.name);
+    }
     throw error;
   }
 }; 

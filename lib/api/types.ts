@@ -58,10 +58,10 @@ export interface ImageAnalysisResponse {
 
 // Image Generation
 export interface ImageGenerationRequest {
-  image: string; // base64 encoded image
-  mime_type?: string;
+  image?: string | null; // base64 encoded image
+  mime_type?: string | null;
   prompt: string;
-  description?: string | null;
+  description?: string | null; // this field will be ignored by the server now
 }
 
 export interface ImageGenerationResponse {

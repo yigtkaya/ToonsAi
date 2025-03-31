@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import Lottie from "lottie-react-native";
-import { analyzeImage, generateImage } from "../lib/api";
+import { analyzeImage, generateImage } from "../lib/api/gemini";
 
 const ImageGenerator = () => {
   const [sourceImage, setSourceImage] = useState<string | null>(null);

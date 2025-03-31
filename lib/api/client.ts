@@ -38,10 +38,24 @@ class ApiClient {
     };
 
     if (options.body) {
+      // Log the request body for debugging without showing full image data
+      if (endpoint.includes('/gemini/generate-image') || endpoint.includes('/gemini/understand-image')) {
+        const bodyClone = {...options.body};
+        
+        // Don't log the full base64 image string, just indicate its presence
+        if (bodyClone.image) {
+          const imageLength = bodyClone.image.length;
+          bodyClone.image = `[base64 image string of length ${imageLength}]`;
+        }
+        
+        console.log(`Request body for ${endpoint}:`, JSON.stringify(bodyClone, null, 2));
+      }
+      
       fetchOptions.body = JSON.stringify(options.body);
     }
 
     try {
+      console.log(`Making ${options.method} request to: ${url}`);
       const response = await fetch(url, fetchOptions);
       
       // Check if the response is JSON
@@ -50,6 +64,7 @@ class ApiClient {
         const data = await response.json();
         
         if (!response.ok) {
+          console.error(`API error (${response.status}):`, data);
           throw new Error(data.detail || data.message || `Request failed with status ${response.status}`);
         }
         
@@ -62,6 +77,7 @@ class ApiClient {
         const text = await response.text();
         
         if (!response.ok) {
+          console.error(`API error (${response.status}):`, text);
           throw new Error(`Request failed with status ${response.status}: ${text}`);
         }
         
