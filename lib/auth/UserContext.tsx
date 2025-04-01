@@ -70,7 +70,18 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         setUser(currentSession.user);
 
         // Initialize RevenueCat with the user's ID
-        initializeRevenueCat(currentSession.user.id);
+        try {
+          initializeRevenueCat(currentSession.user.id);
+
+          // Add a short delay to ensure RevenueCat has time to initialize
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        } catch (rcError) {
+          console.error("Error initializing RevenueCat:", rcError);
+          ErrorTracking.captureException(rcError as Error, {
+            context: "initializeRevenueCat",
+          });
+          // Continue even if RevenueCat fails - we don't want to block the app
+        }
 
         // Identify user in Mixpanel
         Analytics.identifyUser(currentSession.user.id, {
@@ -113,7 +124,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
         if (newSession?.user) {
           // Initialize RevenueCat whenever the user changes
-          initializeRevenueCat(newSession.user.id);
+          try {
+            initializeRevenueCat(newSession.user.id);
+
+            // Add a short delay to ensure RevenueCat has time to initialize
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          } catch (rcError) {
+            console.error(
+              "Error initializing RevenueCat from auth state change:",
+              rcError
+            );
+            ErrorTracking.captureException(rcError as Error, {
+              context: "initializeRevenueCat_authStateChange",
+            });
+            // Continue even if RevenueCat fails - we don't want to block the app
+          }
 
           // Identify user in Mixpanel when auth state changes
           Analytics.identifyUser(newSession.user.id, {
@@ -160,7 +185,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       if (user) {
         // Initialize RevenueCat with the new user's ID
-        initializeRevenueCat(user.id);
+        try {
+          initializeRevenueCat(user.id);
+
+          // Add a short delay to ensure RevenueCat has time to initialize
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        } catch (rcError) {
+          console.error(
+            "Error initializing RevenueCat during sign in:",
+            rcError
+          );
+          ErrorTracking.captureException(rcError as Error, {
+            context: "initializeRevenueCat_signIn",
+          });
+          // Continue even if RevenueCat fails - we don't want to block the app
+        }
 
         // Identify new user in Mixpanel
         Analytics.identifyUser(user.id, {

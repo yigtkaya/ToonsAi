@@ -26,7 +26,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useUser } from "@/lib/auth/UserContext";
-import { purchasePackage } from "@/lib/revenuecat/client";
+import { purchasePackage, getPackages } from "@/lib/revenuecat/client";
 import Analytics from "@/lib/analytics";
 import ErrorTracking from "@/lib/errorTracking";
 
@@ -159,13 +159,23 @@ export default function PaywallScreen() {
     try {
       setLoading(true);
       setError(null);
-      setUsingMockData(true);
 
       // Always use mock packages for consistent display
-      setPackages(MOCK_PACKAGES);
+      // Use getPackages from our client instead of directly using Purchases
+      const availablePackages = await getPackages();
+
+      if (availablePackages.length > 0) {
+        setPackages(availablePackages);
+        setUsingMockData(false);
+      } else {
+        // Fallback to mock packages if none returned
+        setPackages(MOCK_PACKAGES);
+        setUsingMockData(true);
+      }
+
       setSelectedPackage("toonsai_yearly"); // Default to yearly plan
       ErrorTracking.addBreadcrumb("Paywall packages loaded", "app_action", {
-        using_mock_data: true,
+        using_mock_data: usingMockData,
       });
     } catch (err) {
       console.error("Error in fetchPackages:", err);
@@ -176,6 +186,7 @@ export default function PaywallScreen() {
       // Fallback to mock data
       setPackages(MOCK_PACKAGES);
       setSelectedPackage("toonsai_yearly");
+      setUsingMockData(true);
     } finally {
       setLoading(false);
     }
@@ -217,8 +228,18 @@ export default function PaywallScreen() {
         // Use our custom purchase function that handles mock data
         await purchasePackage(packageToPurchase);
       } else {
-        // Use the actual RevenueCat purchase
-        await Purchases.purchasePackage(packageToPurchase);
+        try {
+          // Use the actual RevenueCat purchase but with safety check
+          await purchasePackage(packageToPurchase);
+        } catch (purchaseError) {
+          console.error("Purchase error:", purchaseError);
+          setError("Failed to complete purchase. Please try again.");
+          ErrorTracking.captureException(purchaseError as Error, {
+            context: "directPurchasePackage",
+          });
+          setPurchasing(false);
+          return;
+        }
       }
 
       // Track successful subscription

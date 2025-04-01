@@ -4,6 +4,7 @@ import Purchases, {
   PurchasesConfiguration,
 } from "react-native-purchases";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // RevenueCat API keys
 const REVENUECAT_IOS_API_KEY =
@@ -15,6 +16,9 @@ const REVENUECAT_ANDROID_API_KEY =
 const isUsingPlaceholderKeys =
   REVENUECAT_IOS_API_KEY === "placeholder_ios_key" ||
   REVENUECAT_ANDROID_API_KEY === "placeholder_android_key";
+
+// Track whether RevenueCat has been initialized
+let isRevenueCatInitialized = false;
 
 /**
  * Initialize RevenueCat with the appropriate API key
@@ -47,10 +51,31 @@ export const initializeRevenueCat = (userId: string | null): void => {
     };
 
     Purchases.configure(configuration);
+    isRevenueCatInitialized = true;
     console.log("RevenueCat initialized with user ID:", userId);
   } catch (error) {
     console.error("Error initializing RevenueCat:", error);
+    isRevenueCatInitialized = false;
   }
+};
+
+/**
+ * Ensures RevenueCat is initialized before proceeding with operations
+ * @returns true if RevenueCat is properly initialized or using placeholder keys, false otherwise
+ */
+const ensureRevenueCatInitialized = (): boolean => {
+  // If using placeholder keys, we don't need actual initialization
+  if (isUsingPlaceholderKeys) {
+    return true;
+  }
+  
+  // Check if RevenueCat is initialized
+  if (!isRevenueCatInitialized) {
+    console.warn("RevenueCat is not initialized. Make sure to call initializeRevenueCat first.");
+    return false;
+  }
+  
+  return true;
 };
 
 /**
@@ -83,6 +108,11 @@ export const getCustomerInfo = async (): Promise<CustomerInfo | null> => {
         nonSubscriptionTransactions: [],
         activeSubscriptions: [],
       } as unknown as CustomerInfo;
+    }
+
+    // Ensure RevenueCat is initialized
+    if (!ensureRevenueCatInitialized()) {
+      return null;
     }
 
     const customerInfo = await Purchases.getCustomerInfo();
@@ -149,6 +179,11 @@ export const getPackages = async (
           offering: "default",
         } as unknown as PurchasesPackage,
       ];
+    }
+
+    // Ensure RevenueCat is initialized
+    if (!ensureRevenueCatInitialized()) {
+      return [];
     }
 
     const offerings = await Purchases.getOfferings();
@@ -229,6 +264,11 @@ export const purchasePackage = async (
       } as unknown as CustomerInfo;
     }
 
+    // Ensure RevenueCat is initialized
+    if (!ensureRevenueCatInitialized()) {
+      return null;
+    }
+
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     return customerInfo;
   } catch (error) {
@@ -243,12 +283,29 @@ export const purchasePackage = async (
  */
 export const hasActiveSubscription = async (): Promise<boolean> => {
   try {
+    // If we're using placeholder keys, always return false unless in development
+    if (isUsingPlaceholderKeys) {
+      // In development, developers can set a debug flag to simulate having a subscription
+      const simulateProSubscription = await AsyncStorage.getItem('debug_simulate_pro');
+      if (simulateProSubscription === 'true') {
+        return true;
+      }
+      return false;
+    }
+    
+    // Get customer info
     const customerInfo = await getCustomerInfo();
 
+    // If we couldn't get customer info, assume no subscription
     if (!customerInfo) return false;
 
-    // Check for active entitlement - replace 'pro' with your actual entitlement ID
-    return customerInfo.entitlements.active.hasOwnProperty("pro");
+    // Check if any active entitlements exist
+    if (!customerInfo.entitlements || !customerInfo.entitlements.active) {
+      return false;
+    }
+
+    // Check for active entitlement - 'pro' is the expected entitlement ID
+    return customerInfo.entitlements.active.pro !== undefined;
   } catch (error) {
     console.error("Error checking subscription status:", error);
     return false;
@@ -258,12 +315,17 @@ export const hasActiveSubscription = async (): Promise<boolean> => {
 /**
  * Update the user ID for RevenueCat
  * @param userId New user ID
- * @returns true if successful, false if error
+ * @returns boolean indicating success
  */
 export const updateRevenueCatUserId = async (
   userId: string
 ): Promise<boolean> => {
   try {
+    // Ensure RevenueCat is initialized
+    if (!ensureRevenueCatInitialized()) {
+      return false;
+    }
+
     await Purchases.logIn(userId);
     return true;
   } catch (error) {
