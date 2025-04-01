@@ -133,28 +133,27 @@ const ApiTestComponent = () => {
     setError(null);
 
     try {
-      // First analyze the image if we haven't done so yet
       let description = null;
+
       if (!imageAnalysis) {
         const analysisResult = await analyzeImage(selectedImage);
         description = analysisResult.description;
         setImageAnalysis(JSON.stringify(analysisResult, null, 2));
       } else {
-        // Extract description from existing analysis
-        try {
-          const analysis = JSON.parse(imageAnalysis);
-          description = analysis.description;
-        } catch (e) {
-          console.error("Error parsing image analysis:", e);
-        }
+        const analysis = JSON.parse(imageAnalysis);
+        description = analysis.description;
       }
 
-      // Generate the image
-      const imageUrl = await generateImage(
+      let imageUrl = await generateImage(
         selectedImage,
         transformPrompt,
         description || undefined
       );
+
+      // Ensure proper data URL prefix for base64 images
+      if (!imageUrl.startsWith("data:") && !imageUrl.startsWith("file://")) {
+        imageUrl = `data:image/png;base64,${imageUrl}`;
+      }
 
       setGeneratedImage(imageUrl);
     } catch (err) {

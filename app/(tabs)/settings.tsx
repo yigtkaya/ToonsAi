@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  Modal,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +21,9 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
+// Theme preferences
+type ThemePreference = "light" | "dark" | "system";
+
 const SettingsScreen = function SettingsScreen() {
   const colorScheme = useColorScheme() ?? "light";
   const colors = Colors[colorScheme];
@@ -27,6 +32,47 @@ const SettingsScreen = function SettingsScreen() {
   const { user, hasSubscription, checkSubscription, signOut } = useUser();
   const [saveToCameraRoll, setSaveToCameraRoll] = useState(true);
   const [highQualityDownloads, setHighQualityDownloads] = useState(true);
+  const [themePreference, setThemePreference] =
+    useState<ThemePreference>("system");
+  const [showThemeModal, setShowThemeModal] = useState(false);
+
+  // Load saved theme preference on mount
+  useEffect(() => {
+    const loadThemePreference = async () => {
+      try {
+        const savedPreference = await AsyncStorage.getItem("themePreference");
+        if (savedPreference) {
+          setThemePreference(savedPreference as ThemePreference);
+        }
+      } catch (error) {
+        console.error("Failed to load theme preference:", error);
+      }
+    };
+
+    loadThemePreference();
+  }, []);
+
+  // Save theme preference when it changes
+  const saveThemePreference = async (preference: ThemePreference) => {
+    try {
+      await AsyncStorage.setItem("themePreference", preference);
+      setThemePreference(preference);
+      setShowThemeModal(false);
+
+      // Note: To actually apply this theme, we'd need to update our app with
+      // a custom theme provider that reads from AsyncStorage, which we'll implement next
+
+      // For now, just show a notice that app restart may be needed
+      if (preference !== "system") {
+        Alert.alert(
+          "Theme Changed",
+          "Please restart the app for the theme change to fully apply."
+        );
+      }
+    } catch (error) {
+      console.error("Failed to save theme preference:", error);
+    }
+  };
 
   // Clear saved images
   const clearSavedImages = async () => {
@@ -111,6 +157,108 @@ const SettingsScreen = function SettingsScreen() {
     );
   };
 
+  const renderThemeModal = () => {
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showThemeModal}
+        onRequestClose={() => setShowThemeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.background },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Select Theme</ThemedText>
+              <TouchableOpacity
+                onPress={() => setShowThemeModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.themeOption,
+                themePreference === "system" && styles.selectedThemeOption,
+              ]}
+              onPress={() => saveThemePreference("system")}
+            >
+              <Ionicons
+                name="phone-portrait"
+                size={22}
+                color={colors.text}
+                style={styles.themeIcon}
+              />
+              <View style={styles.themeTextContainer}>
+                <ThemedText style={styles.themeText}>System Default</ThemedText>
+                <ThemedText style={styles.themeDescription}>
+                  Follow your device settings
+                </ThemedText>
+              </View>
+              {themePreference === "system" && (
+                <Ionicons name="checkmark" size={22} color={colors.tint} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.themeOption,
+                themePreference === "light" && styles.selectedThemeOption,
+              ]}
+              onPress={() => saveThemePreference("light")}
+            >
+              <Ionicons
+                name="sunny"
+                size={22}
+                color={colors.text}
+                style={styles.themeIcon}
+              />
+              <View style={styles.themeTextContainer}>
+                <ThemedText style={styles.themeText}>Light</ThemedText>
+                <ThemedText style={styles.themeDescription}>
+                  Always use light theme
+                </ThemedText>
+              </View>
+              {themePreference === "light" && (
+                <Ionicons name="checkmark" size={22} color={colors.tint} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.themeOption,
+                themePreference === "dark" && styles.selectedThemeOption,
+              ]}
+              onPress={() => saveThemePreference("dark")}
+            >
+              <Ionicons
+                name="moon"
+                size={22}
+                color={colors.text}
+                style={styles.themeIcon}
+              />
+              <View style={styles.themeTextContainer}>
+                <ThemedText style={styles.themeText}>Dark</ThemedText>
+                <ThemedText style={styles.themeDescription}>
+                  Always use dark theme
+                </ThemedText>
+              </View>
+              {themePreference === "dark" && (
+                <Ionicons name="checkmark" size={22} color={colors.tint} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top", "right", "left"]}>
       <View style={styles.header}>
@@ -146,6 +294,19 @@ const SettingsScreen = function SettingsScreen() {
         {/* App Preferences Section */}
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>App Preferences</ThemedText>
+
+          {renderSettingItem(
+            "color-palette",
+            "App Theme",
+            themePreference === "system"
+              ? "System Default"
+              : themePreference === "dark"
+              ? "Dark Mode"
+              : "Light Mode",
+            () => setShowThemeModal(true),
+            <Ionicons name="chevron-forward" size={20} color={colors.icon} />
+          )}
+
           {renderSettingItem(
             "save",
             "Save to Camera Roll",
@@ -232,6 +393,8 @@ const SettingsScreen = function SettingsScreen() {
           </ThemedText>
         </TouchableOpacity> */}
       </ScrollView>
+
+      {renderThemeModal()}
     </SafeAreaView>
   );
 };
@@ -326,5 +489,54 @@ const styles = StyleSheet.create({
     color: "#cc6b5a",
     fontWeight: "600",
     fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: Platform.OS === "ios" ? 40 : 20, // Extra padding for iOS
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  closeButton: {
+    padding: 5,
+  },
+  themeOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    borderRadius: 12,
+  },
+  selectedThemeOption: {
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+  },
+  themeIcon: {
+    marginRight: 12,
+  },
+  themeTextContainer: {
+    flex: 1,
+  },
+  themeText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  themeDescription: {
+    fontSize: 14,
+    opacity: 0.7,
   },
 });

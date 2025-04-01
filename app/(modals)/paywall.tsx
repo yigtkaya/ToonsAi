@@ -97,6 +97,15 @@ const MOCK_PACKAGES: PurchasesPackage[] = [
   } as unknown as PurchasesPackage,
 ];
 
+// Export platform-specific terms text function
+const getPlatformTermsText = (platform: string) => {
+  if (platform === "ios") {
+    return "Payment will be charged to your Apple ID account at the confirmation of purchase. Subscription automatically renews unless it is canceled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage and cancel your subscriptions by going to your account settings on the App Store after purchase.";
+  } else {
+    return "Payment will be charged to your Google Play account at the confirmation of purchase. Subscription automatically renews unless auto-renew is turned off at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage your subscriptions and turn off auto-renewal by going to your Google Play account settings after purchase.";
+  }
+};
+
 export default function PaywallScreen() {
   const { hasSubscription, checkSubscription } = useUser();
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
@@ -114,6 +123,11 @@ export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isTablet = screenWidth >= 768;
+
+  // Create header style with proper spacing
+  const headerStyle = {
+    ...styles.header,
+  };
 
   useEffect(() => {
     // Fetch subscription packages
@@ -292,6 +306,11 @@ export default function PaywallScreen() {
     };
   };
 
+  // Platform-specific terms text
+  const getTermsText = () => {
+    return getPlatformTermsText(Platform.OS);
+  };
+
   if (loading) {
     return (
       <ImageBackground
@@ -299,8 +318,12 @@ export default function PaywallScreen() {
         style={styles.container}
         resizeMode="cover"
       >
-        <SafeAreaView style={styles.safeArea}>
-          <ActivityIndicator size="large" color="#7f5c3c" />
+        <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
+          <View
+            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          >
+            <ActivityIndicator size="large" color="#7f5c3c" />
+          </View>
         </SafeAreaView>
       </ImageBackground>
     );
@@ -313,8 +336,8 @@ export default function PaywallScreen() {
         style={styles.container}
         resizeMode="cover"
       >
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.header}>
+        <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
+          <View style={headerStyle}>
             <TouchableOpacity
               onPress={() => router.back()}
               style={styles.closeButton}
@@ -349,22 +372,29 @@ export default function PaywallScreen() {
       style={styles.container}
       resizeMode="cover"
     >
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
         <ScrollView
           contentContainerStyle={{
-            paddingBottom: insets.bottom + 20,
+            paddingBottom: 20, // Fixed padding instead of dynamic insets
           }}
         >
-          <View style={styles.header}>
-            {/* Show close button after timer expires */}
-            {showCloseButton && (
-              <TouchableOpacity
-                onPress={handleClose}
-                style={styles.closeButton}
-              >
+          <View style={headerStyle}>
+            {/* Always reserve space for the close button, but only make it touchable when visible */}
+            <TouchableOpacity
+              onPress={showCloseButton ? handleClose : undefined}
+              style={[
+                styles.closeButton,
+                !showCloseButton && styles.invisibleButton,
+              ]}
+              disabled={!showCloseButton}
+            >
+              {showCloseButton ? (
                 <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-            )}
+              ) : (
+                // Empty view to maintain space
+                <View style={{ width: 24, height: 24 }} />
+              )}
+            </TouchableOpacity>
           </View>
 
           {usingMockData && (
@@ -539,16 +569,8 @@ export default function PaywallScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Terms */}
-            <Text style={styles.termsText}>
-              Payment will be charged to your Apple ID account at the
-              confirmation of purchase. Subscription automatically renews unless
-              it is canceled at least 24 hours before the end of the current
-              period. Your account will be charged for renewal within 24 hours
-              prior to the end of the current period. You can manage and cancel
-              your subscriptions by going to your account settings on the App
-              Store after purchase.
-            </Text>
+            {/* Platform-specific Terms */}
+            <Text style={styles.termsText}>{getTermsText()}</Text>
 
             {/* Legal Links */}
             <View style={styles.legalLinksContainer}>
@@ -596,6 +618,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-end",
     padding: 12,
+    paddingTop: Platform.OS === "ios" ? 44 : 12, // Add padding for iOS status bar
+    height: Platform.OS === "ios" ? 88 : 60, // Adjust height based on platform
+    zIndex: 10, // Ensure the header is above other content
   },
   closeButton: {
     width: 36,
@@ -607,6 +632,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+    paddingTop: 4, // Reduced top padding since we already have header space
   },
   title: {
     fontSize: 28,
@@ -801,6 +827,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 14,
     lineHeight: 16,
+    paddingHorizontal: 16,
+    fontFamily: Platform.OS === "ios" ? "System" : "normal",
   },
   legalLinksContainer: {
     flexDirection: "row",
@@ -863,5 +891,8 @@ const styles = StyleSheet.create({
   packageDescription: {
     fontSize: 12,
     color: "#fff",
+  },
+  invisibleButton: {
+    backgroundColor: "rgba(0, 0, 0, 0.1)", // Very subtle background instead of transparent
   },
 });
