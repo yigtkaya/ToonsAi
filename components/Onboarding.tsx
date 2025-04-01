@@ -5,15 +5,14 @@ import {
   Dimensions,
   TouchableOpacity,
   FlatList,
-  SafeAreaView,
-  ImageBackground,
   Image,
+  Platform,
 } from "react-native";
 import { ThemedText } from "./ThemedText";
-import { ThemedView } from "./ThemedView";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/constants/Colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
 const { width, height } = Dimensions.get("window");
@@ -23,31 +22,49 @@ type OnboardingItem = {
   id: string;
   title: string;
   description: string;
-  gradientColors: readonly [string, string];
+  image: any;
 };
 
 // Onboarding screens data
 const onboardingData: OnboardingItem[] = [
   {
     id: "1",
-    title: "Welcome to ToonsAI",
+    title: "Ghibli Style",
     description:
-      "Transform any idea into beautiful cartoon style images with just a text prompt!",
-    gradientColors: ["#7BB5D6", "#86A872"] as const, // Ghibli blue to green
+      "Create whimsical scenes and characters with the iconic Ghibli aesthetic.",
+    image: require("../assets/styles/ghibli.png"),
   },
   {
     id: "2",
-    title: "Unlimited Creativity",
+    title: "Pixar Style",
     description:
-      "Type any prompt and watch as AI turns your words into cartoon masterpieces.",
-    gradientColors: ["#E5BACE", "#F0C869"] as const, // Ghibli pink to yellow
+      "Bring your ideas to life with vibrant 3D Pixar-inspired animations.",
+    image: require("../assets/styles/pixar.png"),
   },
   {
     id: "3",
-    title: "Ready to Start?",
+    title: "Anime Style",
+    description: "Express yourself with dynamic anime characters and scenes.",
+    image: require("../assets/styles/anime.png"),
+  },
+  {
+    id: "4",
+    title: "Western Comic Style",
+    description: "Create bold, colorful comic art with a Western flair.",
+    image: require("../assets/styles/western-comic.png"),
+  },
+  {
+    id: "5",
+    title: "Disney Style",
+    description: "Bring the magic of Disney to your creative ideas.",
+    image: require("../assets/styles/disney.png"),
+  },
+  {
+    id: "6",
+    title: "Flat Modern Style",
     description:
-      "Try the app now with 2 free generations daily. Subscribe for unlimited access!",
-    gradientColors: ["#7BB5D6", "#303842"] as const, // Ghibli blue to charcoal
+      "Create sleek, minimalist illustrations with a contemporary look.",
+    image: require("../assets/styles/flat-modern.png"),
   },
 ];
 
@@ -59,31 +76,30 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
 
   const colors = Colors[colorScheme ?? "light"];
 
   const renderItem = ({ item }: { item: OnboardingItem }) => {
     return (
       <View style={styles.slide}>
+        <Image
+          source={item.image}
+          style={styles.backgroundImage}
+          resizeMode="cover"
+        />
         <LinearGradient
-          colors={item.gradientColors}
-          style={styles.backgroundGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          colors={["transparent", "rgba(0,0,0,0.7)"]}
+          style={styles.gradient}
         >
-          <LinearGradient
-            colors={["transparent", "rgba(0,0,0,0.7)"] as const}
-            style={styles.gradient}
-          >
-            <View style={styles.textContainer}>
-              <ThemedText type="title" style={styles.title}>
-                {item.title}
-              </ThemedText>
-              <ThemedText style={styles.description}>
-                {item.description}
-              </ThemedText>
-            </View>
-          </LinearGradient>
+          <View style={styles.textContainer}>
+            <ThemedText type="title" style={styles.title}>
+              {item.title}
+            </ThemedText>
+            <ThemedText style={styles.description}>
+              {item.description}
+            </ThemedText>
+          </View>
         </LinearGradient>
       </View>
     );
@@ -111,7 +127,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         }}
       />
 
-      <View style={styles.bottomContainer}>
+      <View
+        style={[
+          styles.bottomContainer,
+          { paddingBottom: Math.max(insets.bottom, 20) },
+        ]}
+      >
         <View style={styles.pagination}>
           {onboardingData.map((_, index) => (
             <View
@@ -146,18 +167,24 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#000",
   },
   slide: {
     width,
     height,
+    position: "relative",
   },
-  backgroundGradient: {
+  backgroundImage: {
     width,
     height,
-    justifyContent: "flex-end",
+    position: "absolute",
   },
   gradient: {
-    flex: 1,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.4,
     justifyContent: "flex-end",
     paddingBottom: 150,
   },
@@ -186,10 +213,11 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: "absolute",
-    bottom: 50,
+    bottom: 0,
     left: 0,
     right: 0,
     alignItems: "center",
+    paddingBottom: Platform.OS === "ios" ? 50 : 30,
   },
   pagination: {
     flexDirection: "row",

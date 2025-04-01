@@ -128,7 +128,12 @@ const Gallery = () => {
           </ThemedText>
         </View>
 
-        <View style={[styles.actionButtons, { marginBottom: insets.bottom }]}>
+        <View
+          style={[
+            styles.actionButtons,
+            { paddingBottom: Math.max(insets.bottom, 20) },
+          ]}
+        >
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.tint }]}
           >

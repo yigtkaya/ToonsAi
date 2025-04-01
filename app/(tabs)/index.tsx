@@ -29,7 +29,7 @@ const isUsingPlaceholderKeys =
   (process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY || "") ===
     "placeholder_android_key";
 
-export default function HomeScreen() {
+const HomeScreen = function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const {
@@ -169,7 +169,9 @@ export default function HomeScreen() {
       </ScrollView>
     </SafeAreaView>
   );
-}
+};
+
+export default HomeScreen;
 
 const styles = StyleSheet.create({
   safeArea: {

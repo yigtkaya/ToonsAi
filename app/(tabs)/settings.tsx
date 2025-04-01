@@ -19,7 +19,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-export default function SettingsScreen() {
+const SettingsScreen = function SettingsScreen() {
   const colorScheme = useColorScheme() ?? "light";
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -234,7 +234,9 @@ export default function SettingsScreen() {
       </ScrollView>
     </SafeAreaView>
   );
-}
+};
+
+export default SettingsScreen;
 
 const styles = StyleSheet.create({
   container: {

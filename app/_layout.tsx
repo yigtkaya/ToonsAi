@@ -17,6 +17,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import Onboarding from "@/components/Onboarding";
 import { UserProvider } from "@/lib/auth/UserContext";
 import PaywallController from "@/components/PaywallController";
+import { getRemainingGenerations } from "@/lib/auth/usageTracking";
 
 // Keep the splash screen visible while we check onboarding status
 SplashScreen.preventAutoHideAsync();
@@ -56,7 +57,7 @@ const configureAndroidSystemNavBar = (visible: boolean = true) => {
   }
 };
 
-export default function RootLayout() {
+const RootLayout = function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
@@ -64,12 +65,19 @@ export default function RootLayout() {
   const [isOnboardingComplete, setIsOnboardingComplete] = useState<
     boolean | null
   >(null);
+  const [showInitialPaywall, setShowInitialPaywall] = useState(false);
 
+  // Check if user has completed onboarding
   useEffect(() => {
     async function checkOnboarding() {
       try {
         const value = await AsyncStorage.getItem("onboardingCompleted");
         setIsOnboardingComplete(value === "true");
+
+        // If onboarding is complete, check if we should show the paywall
+        if (value === "true") {
+          checkPaywallStatus();
+        }
       } catch (error) {
         console.error("Error checking onboarding status:", error);
         // Default to showing onboarding if there's an error
@@ -81,6 +89,30 @@ export default function RootLayout() {
       checkOnboarding();
     }
   }, [loaded]);
+
+  // Check if we should show the paywall based on remaining generations
+  const checkPaywallStatus = async () => {
+    try {
+      // Check if the paywall has already been shown today
+      const paywallShownToday = await AsyncStorage.getItem("paywallShownToday");
+      const today = new Date().toISOString().split("T")[0];
+
+      if (paywallShownToday === today) {
+        // Already shown today, don't show again
+        return;
+      }
+
+      // Check remaining generations - show paywall when low (1 or less)
+      const remaining = await getRemainingGenerations();
+      if (remaining <= 1) {
+        setShowInitialPaywall(true);
+        // Mark that we've shown the paywall today
+        await AsyncStorage.setItem("paywallShownToday", today);
+      }
+    } catch (error) {
+      console.error("Error checking paywall status:", error);
+    }
+  };
 
   useEffect(() => {
     if (loaded && isOnboardingComplete !== null) {
@@ -99,7 +131,7 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <UserProvider>
           <Onboarding onComplete={() => setIsOnboardingComplete(true)} />
-          <StatusBar style="auto" />
+          <StatusBar style="light" />
         </UserProvider>
       </ThemeProvider>
     );
@@ -118,6 +150,10 @@ export default function RootLayout() {
                 presentation: "fullScreenModal",
                 animation: "slide_from_bottom",
                 headerShown: false,
+                gestureEnabled: false,
+              }}
+              initialParams={{
+                showOnStart: showInitialPaywall,
               }}
             />
             <Stack.Screen
@@ -141,4 +177,6 @@ export default function RootLayout() {
       </SafeAreaProvider>
     </ThemeProvider>
   );
-}
+};
+
+export default RootLayout;

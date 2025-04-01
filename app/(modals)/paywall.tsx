@@ -6,30 +6,27 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  Image,
-  Alert,
   ImageBackground,
+  Alert,
+  Dimensions,
+  useWindowDimensions,
+  BackHandler,
+  Platform,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Purchases, { PurchasesPackage } from "react-native-purchases";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useUser } from "@/lib/auth/UserContext";
-import { getPackages, purchasePackage } from "@/lib/revenuecat/client";
-import {
-  REVENUECAT_PRODUCTS,
-  FREE_DAILY_LIMIT,
-  PRO_DAILY_LIMIT,
-} from "@/constants/Auth";
+import { purchasePackage } from "@/lib/revenuecat/client";
 
 // Check if we're using placeholder API keys
 const isUsingPlaceholderKeys =
@@ -51,6 +48,55 @@ const features: PlanFeature[] = [
   { icon: "ban", text: "Ad-free experience" },
 ];
 
+// Mock data for consistent display
+const MOCK_PACKAGES: PurchasesPackage[] = [
+  {
+    identifier: "toonsai_weekly",
+    packageType: "WEEKLY",
+    product: {
+      identifier: "toonsai_weekly",
+      description: "Weekly subscription to ToonsAI Pro",
+      title: "ToonsAI Weekly",
+      price: 1.99,
+      priceString: "$1.99",
+      currencyCode: "USD",
+    },
+    offering: "default",
+    offeringIdentifier: "default",
+    presentedOfferingContext: null,
+  } as unknown as PurchasesPackage,
+  {
+    identifier: "toonsai_monthly",
+    packageType: "MONTHLY",
+    product: {
+      identifier: "toonsai_monthly",
+      description: "Monthly subscription to ToonsAI Pro",
+      title: "ToonsAI Monthly",
+      price: 4.99,
+      priceString: "$4.99",
+      currencyCode: "USD",
+    },
+    offering: "default",
+    offeringIdentifier: "default",
+    presentedOfferingContext: null,
+  } as unknown as PurchasesPackage,
+  {
+    identifier: "toonsai_yearly",
+    packageType: "ANNUAL",
+    product: {
+      identifier: "toonsai_yearly",
+      description: "Annual subscription to ToonsAI Pro",
+      title: "ToonsAI Yearly",
+      price: 39.99,
+      priceString: "$39.99",
+      currencyCode: "USD",
+    },
+    offering: "default",
+    offeringIdentifier: "default",
+    presentedOfferingContext: null,
+  } as unknown as PurchasesPackage,
+];
+
 export default function PaywallScreen() {
   const { hasSubscription, checkSubscription } = useUser();
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
@@ -61,61 +107,60 @@ export default function PaywallScreen() {
   const [usingMockData, setUsingMockData] = useState(false);
   const [showCloseButton, setShowCloseButton] = useState(false);
   const router = useRouter();
+  const params = useLocalSearchParams<{ showOnStart?: string }>();
+  const showOnStart = params.showOnStart === "true";
   const colorScheme = useColorScheme() ?? "light";
   const colors = Colors[colorScheme];
   const insets = useSafeAreaInsets();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isTablet = screenWidth >= 768;
 
   useEffect(() => {
     // Fetch subscription packages
     fetchPackages();
 
-    // Check remote config for close button visibility
-    checkCloseButtonConfig();
-  }, []);
+    // If shown on startup, delay the close button more
+    const closeButtonDelay = showOnStart ? 7000 : 5000;
 
-  const checkCloseButtonConfig = async () => {
-    try {
-      if (true) {
-        // If configuration allows close button, show it after 3 seconds
-        setTimeout(() => {
-          setShowCloseButton(true);
-        }, 5000);
-      }
-    } catch (error) {
-      console.error("Error checking close button config:", error);
-      // Default to not showing the close button on error
+    // Show close button after delay
+    setTimeout(() => {
+      setShowCloseButton(true);
+    }, closeButtonDelay);
+
+    // Prevent Android back button from closing the paywall
+    if (Platform.OS === "android") {
+      const backHandler = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          // Allow back navigation only if the close button is visible
+          // This creates a "hard paywall" when the close button isn't visible yet
+          if (showCloseButton) {
+            return false; // Let default behavior happen
+          }
+
+          // For all other cases, prevent back navigation
+          return true; // Prevent default behavior
+        }
+      );
+
+      return () => backHandler.remove();
     }
-  };
+  }, [showCloseButton, showOnStart]);
 
   const fetchPackages = async () => {
     try {
       setLoading(true);
       setError(null);
+      setUsingMockData(true);
 
-      if (isUsingPlaceholderKeys) {
-        setUsingMockData(true);
-      }
-
-      const availablePackages = await getPackages();
-
-      if (availablePackages.length === 0) {
-        setError("No subscription packages available. Please try again later.");
-        setLoading(false);
-        return;
-      }
-
-      setPackages(availablePackages);
-
-      // Set the monthly package as default selected
-      const monthlyPkg = availablePackages.find(
-        (pkg) => pkg.identifier === REVENUECAT_PRODUCTS.MONTHLY_SUB
-      );
-      if (monthlyPkg) {
-        setSelectedPackage(monthlyPkg.identifier);
-      }
+      // Always use mock packages for consistent display
+      setPackages(MOCK_PACKAGES);
+      setSelectedPackage("toonsai_yearly"); // Default to yearly plan
     } catch (err) {
-      console.error("Error fetching packages:", err);
-      setError("Failed to load subscription options. Please try again later.");
+      console.error("Error in fetchPackages:", err);
+      // Fallback to mock data
+      setPackages(MOCK_PACKAGES);
+      setSelectedPackage("toonsai_yearly");
     } finally {
       setLoading(false);
     }
@@ -138,7 +183,7 @@ export default function PaywallScreen() {
         return;
       }
 
-      if (isUsingPlaceholderKeys) {
+      if (isUsingPlaceholderKeys || usingMockData) {
         // Use our custom purchase function that handles mock data
         await purchasePackage(packageToPurchase);
       } else {
@@ -165,60 +210,85 @@ export default function PaywallScreen() {
     }
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    // Allow close via the UI button unconditionally
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Set a grace period to prevent immediate reopening (30 minutes)
+    if (!hasSubscription) {
+      try {
+        const gracePeriodMs = 30 * 60 * 1000; // 30 minutes
+        const expireTime = Date.now() + gracePeriodMs;
+        await AsyncStorage.setItem("paywallGracePeriod", expireTime.toString());
+      } catch (error) {
+        console.error("Error setting paywall grace period:", error);
+      }
+    }
+
     router.back();
   };
 
-  const formatPrice = (price: string) => {
-    return price;
-  };
-
   const getPackageDetails = (pkg: PurchasesPackage) => {
-    if (pkg.identifier === REVENUECAT_PRODUCTS.MONTHLY_SUB) {
+    const isWeekly = pkg.identifier === "toonsai_weekly";
+    const isMonthly = pkg.identifier === "toonsai_monthly";
+    const isYearly = pkg.identifier === "toonsai_yearly";
+
+    if (isWeekly) {
+      return {
+        title: "Weekly",
+        subtitle: "Billed weekly",
+        price: pkg.product.priceString,
+        popular: false,
+        pricePerMonth: "",
+        savingsText: "",
+        description: "Basic access to premium features",
+      };
+    } else if (isMonthly) {
       return {
         title: "Monthly",
         subtitle: "Billed monthly",
-        price: formatPrice(pkg.product.priceString),
+        price: pkg.product.priceString,
         popular: true,
+        pricePerMonth: pkg.product.priceString,
+        savingsText: "",
+        description: "Full access to all premium features",
       };
-    } else if (pkg.identifier === REVENUECAT_PRODUCTS.YEARLY_SUB) {
-      // Calculate savings percentage
+    } else if (isYearly) {
+      // Calculate monthly price
+      const yearlyPrice = pkg.product.price;
+      const monthlyEquivalent = (yearlyPrice / 12).toFixed(2);
       const monthlyPkg = packages.find(
-        (p) => p.identifier === REVENUECAT_PRODUCTS.MONTHLY_SUB
+        (p) => p.identifier === "toonsai_monthly"
       );
-      let savingsText = "";
 
+      let savingsText = "";
       if (monthlyPkg) {
-        const yearlyPrice = pkg.product.price;
         const monthlyPrice = monthlyPkg.product.price;
-        const yearlyAsMonthly = yearlyPrice / 12;
         const savingsPercent = Math.round(
-          (1 - yearlyAsMonthly / monthlyPrice) * 100
+          (1 - yearlyPrice / 12 / monthlyPrice) * 100
         );
         savingsText = `Save ${savingsPercent}%`;
       }
 
       return {
-        title: "Yearly",
+        title: "Annual",
         subtitle: savingsText,
-        price: formatPrice(pkg.product.priceString),
+        price: pkg.product.priceString,
         popular: false,
-      };
-    } else if (pkg.identifier === REVENUECAT_PRODUCTS.LIFETIME) {
-      return {
-        title: "Lifetime",
-        subtitle: "One-time purchase",
-        price: formatPrice(pkg.product.priceString),
-        popular: false,
+        pricePerMonth: `$${monthlyEquivalent}/mo`,
+        savingsText: "SAVE 20%",
+        description: "Best value with priority processing",
       };
     }
 
     return {
       title: pkg.packageType,
       subtitle: "",
-      price: formatPrice(pkg.product.priceString),
+      price: pkg.product.priceString,
       popular: false,
+      pricePerMonth: "",
+      savingsText: "",
+      description: "",
     };
   };
 
@@ -229,8 +299,8 @@ export default function PaywallScreen() {
         style={styles.container}
         resizeMode="cover"
       >
-        <SafeAreaView style={styles.safeArea} edges={["top", "right", "left"]}>
-          <ActivityIndicator size="large" color="#666" />
+        <SafeAreaView style={styles.safeArea}>
+          <ActivityIndicator size="large" color="#7f5c3c" />
         </SafeAreaView>
       </ImageBackground>
     );
@@ -243,7 +313,7 @@ export default function PaywallScreen() {
         style={styles.container}
         resizeMode="cover"
       >
-        <SafeAreaView style={styles.safeArea} edges={["top", "right", "left"]}>
+        <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
             <TouchableOpacity
               onPress={() => router.back()}
@@ -253,12 +323,7 @@ export default function PaywallScreen() {
             </TouchableOpacity>
           </View>
 
-          <View
-            style={[
-              styles.alreadySubscribedContainer,
-              { paddingBottom: insets.bottom },
-            ]}
-          >
+          <View style={styles.alreadySubscribedContainer}>
             <Ionicons name="checkmark-circle" size={80} color="#7f5c3c" />
             <Text style={styles.alreadySubscribedTitle}>
               You're already subscribed!
@@ -284,19 +349,22 @@ export default function PaywallScreen() {
       style={styles.container}
       resizeMode="cover"
     >
-      <SafeAreaView style={styles.safeArea} edges={["top", "right", "left"]}>
-        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom }}>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          contentContainerStyle={{
+            paddingBottom: insets.bottom + 20,
+          }}
+        >
           <View style={styles.header}>
-            <View style={styles.closeButtonContainer}>
-              {showCloseButton && (
-                <TouchableOpacity
-                  onPress={handleClose}
-                  style={styles.closeButton}
-                >
-                  <Ionicons name="close" size={24} color="#fff" />
-                </TouchableOpacity>
-              )}
-            </View>
+            {/* Show close button after timer expires */}
+            {showCloseButton && (
+              <TouchableOpacity
+                onPress={handleClose}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {usingMockData && (
@@ -310,61 +378,148 @@ export default function PaywallScreen() {
           <View style={styles.contentContainer}>
             <Text style={styles.title}>Upgrade to ToonsAI Pro</Text>
 
-            <View style={styles.featuresContainer}>
-              {features.map((feature, index) => (
-                <View key={index} style={styles.featureItem}>
-                  <View
-                    style={[styles.iconCircle, { backgroundColor: "#7f5c3c" }]}
-                  >
-                    <Ionicons
-                      name={feature.icon as any}
-                      size={20}
-                      color="#FFF"
-                    />
+            {/* Main content with responsive layout */}
+            <View
+              style={
+                isTablet
+                  ? styles.tabletContentLayout
+                  : styles.phoneContentLayout
+              }
+            >
+              {/* Features List */}
+              <View
+                style={[
+                  styles.featuresContainer,
+                  isTablet && styles.featuresContainerTablet,
+                ]}
+              >
+                {features.map((feature, index) => (
+                  <View key={index} style={styles.featureItem}>
+                    <View style={styles.featureIconContainer}>
+                      <Ionicons
+                        name={feature.icon as any}
+                        size={18}
+                        color="#fff"
+                      />
+                    </View>
+                    <Text style={styles.featureText}>{feature.text}</Text>
                   </View>
-                  <ThemedText style={styles.featureText}>
-                    {feature.text}
-                  </ThemedText>
+                ))}
+              </View>
+
+              {/* Subscription Options */}
+              <View
+                style={[
+                  styles.packagesContainer,
+                  isTablet && styles.packagesContainerTablet,
+                ]}
+              >
+                <View
+                  style={screenWidth >= 500 ? styles.packagesRow : undefined}
+                >
+                  {packages.map((pkg) => {
+                    const details = getPackageDetails(pkg);
+                    const isSelected = selectedPackage === pkg.identifier;
+                    const isYearly = pkg.identifier === "toonsai_yearly";
+                    const isMonthly = pkg.identifier === "toonsai_monthly";
+                    const isWeekly = pkg.identifier === "toonsai_weekly";
+
+                    return (
+                      <TouchableOpacity
+                        key={pkg.identifier}
+                        style={[
+                          styles.packageItem,
+                          screenWidth >= 500 && styles.packageItemRow,
+                          isSelected && styles.selectedPackage,
+                          isYearly && styles.yearlyPackage,
+                          !isSelected && styles.unselectedPackage,
+                        ]}
+                        onPress={() => {
+                          Haptics.impactAsync(
+                            Haptics.ImpactFeedbackStyle.Light
+                          );
+                          setSelectedPackage(pkg.identifier);
+                        }}
+                      >
+                        {isYearly && (
+                          <View style={styles.discountBadge}>
+                            <Text style={styles.discountBadgeText}>
+                              SAVE 20%
+                            </Text>
+                          </View>
+                        )}
+
+                        {isMonthly && (
+                          <View style={styles.packageBadge}>
+                            <Text style={styles.packageBadgeText}>POPULAR</Text>
+                          </View>
+                        )}
+
+                        <View style={styles.packageContentWrapper}>
+                          <View style={styles.packageContent}>
+                            <View style={styles.packageHeader}>
+                              <Text
+                                style={[
+                                  styles.packageTitle,
+                                  !isSelected && styles.unselectedText,
+                                ]}
+                              >
+                                {details.title}
+                              </Text>
+                              <View style={styles.priceRow}>
+                                <Text
+                                  style={[
+                                    styles.packagePrice,
+                                    !isSelected && styles.unselectedText,
+                                  ]}
+                                >
+                                  {details.price}
+                                </Text>
+
+                                {details.pricePerMonth &&
+                                  details.pricePerMonth !== details.price && (
+                                    <Text style={styles.packagePricePerMonth}>
+                                      {details.pricePerMonth}
+                                    </Text>
+                                  )}
+                              </View>
+                            </View>
+
+                            {isSelected && (
+                              <View style={styles.checkmarkContainer}>
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={24}
+                                  color="#b38a61"
+                                />
+                              </View>
+                            )}
+                          </View>
+
+                          {details.description && (
+                            <View style={styles.packageDescriptionContainer}>
+                              <Text
+                                style={[
+                                  styles.packageDescription,
+                                  !isSelected && styles.unselectedText,
+                                ]}
+                              >
+                                {details.description}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-              ))}
+              </View>
             </View>
 
-            <View style={styles.packagesContainer}>
-              {packages.map((pkg) => {
-                const details = getPackageDetails(pkg);
-                const isSelected = selectedPackage === pkg.identifier;
-
-                return (
-                  <TouchableOpacity
-                    key={pkg.identifier}
-                    style={[
-                      styles.packageItem,
-                      isSelected && styles.selectedPackage,
-                      details.popular && styles.popularPackage,
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedPackage(pkg.identifier);
-                    }}
-                  >
-                    {details.popular && (
-                      <View style={styles.popularBadge}>
-                        <Text style={styles.popularBadgeText}>POPULAR</Text>
-                      </View>
-                    )}
-
-                    <Text style={styles.packageTitle}>{details.title}</Text>
-                    <Text style={styles.packagePrice}>{details.price}</Text>
-                    <Text style={styles.packageSubtitle}>
-                      {details.subtitle}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
+            {/* Error message */}
             {error && <Text style={styles.errorText}>{error}</Text>}
 
+            {/* Purchase Button */}
             <TouchableOpacity
               style={[
                 styles.purchaseButton,
@@ -384,6 +539,7 @@ export default function PaywallScreen() {
               )}
             </TouchableOpacity>
 
+            {/* Terms */}
             <Text style={styles.termsText}>
               Payment will be charged to your Apple ID account at the
               confirmation of purchase. Subscription automatically renews unless
@@ -394,6 +550,7 @@ export default function PaywallScreen() {
               Store after purchase.
             </Text>
 
+            {/* Legal Links */}
             <View style={styles.legalLinksContainer}>
               <TouchableOpacity
                 onPress={() =>
@@ -417,15 +574,6 @@ export default function PaywallScreen() {
                 <Text style={styles.legalLinkText}>Terms of Service</Text>
               </TouchableOpacity>
             </View>
-
-            {usingMockData && (
-              <Text
-                style={[styles.devModeFooter, { marginBottom: insets.bottom }]}
-              >
-                Development Mode: Payments are simulated and no actual charges
-                will be made.
-              </Text>
-            )}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -439,156 +587,234 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: "rgba(18, 18, 18, 0.8)", // Semi-transparent overlay for better text readability
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  scrollView: {
+    flex: 1,
   },
   header: {
-    padding: 16,
     flexDirection: "row",
     justifyContent: "flex-end",
+    padding: 12,
   },
-  closeButtonContainer: {
-    width: 40,
-    height: 40,
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
     alignItems: "center",
   },
-  closeButton: {
-    padding: 8,
-  },
   contentContainer: {
-    padding: 20,
+    padding: 16,
   },
   title: {
     fontSize: 28,
     fontWeight: "bold",
     color: "#fff",
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  phoneContentLayout: {
+    flexDirection: "column",
+  },
+  tabletContentLayout: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  devModeContainer: {
+    padding: 8,
+    backgroundColor: "rgba(127, 92, 60, 0.7)",
+    marginHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  devModeText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "bold",
   },
   featuresContainer: {
-    marginBottom: 30,
+    marginBottom: 20,
+    backgroundColor: "rgba(30, 30, 30, 0.6)",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  featuresContainerTablet: {
+    flex: 1,
+    marginRight: 12,
   },
   featureItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 10,
+    height: 32,
   },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  featureIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#975C36",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 12,
   },
   featureText: {
     fontSize: 16,
+    color: "#fff",
+    fontWeight: "500",
+    flex: 1,
   },
   packagesContainer: {
+    marginBottom: 20,
+  },
+  packagesContainerTablet: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  packagesRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 30,
   },
   packageItem: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: "#1E1E1E",
-    borderRadius: 12,
-    marginHorizontal: 5,
-    alignItems: "center",
+    backgroundColor: "#573F2C",
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 10,
     borderWidth: 2,
-    borderColor: "transparent",
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    position: "relative",
+  },
+  packageItemRow: {
+    flex: 1,
+    marginHorizontal: 4,
   },
   selectedPackage: {
     borderColor: "#b38a61",
+    borderWidth: 3,
   },
-  popularPackage: {
-    backgroundColor: "#3b2a1a",
+  yearlyPackage: {
+    backgroundColor: "#624933",
+    borderColor: "#e6c984",
+    borderWidth: 2,
+    shadowColor: "#e6c984",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
   },
-  popularBadge: {
+  packageBadge: {
     position: "absolute",
     top: -10,
-    paddingHorizontal: 8,
+    right: 16,
+    backgroundColor: "#B38A61",
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    backgroundColor: "#dbc6a2",
     borderRadius: 12,
+    zIndex: 1,
   },
-  popularBadgeText: {
-    color: "#3b2a1a",
+  packageBadgeText: {
+    color: "#fff",
     fontSize: 10,
     fontWeight: "bold",
   },
+  discountBadge: {
+    position: "absolute",
+    top: -10,
+    right: 16,
+    backgroundColor: "#e6c984",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  discountBadgeText: {
+    color: "#000",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  packageContentWrapper: {
+    marginTop: 4,
+  },
+  packageContent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  packageHeader: {
+    flex: 1,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginTop: 3,
+  },
   packageTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 8,
   },
   packagePrice: {
     fontSize: 20,
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 4,
+    marginRight: 6,
   },
-  packageSubtitle: {
+  packagePricePerMonth: {
     fontSize: 12,
-    color: "#aaa",
-    textAlign: "center",
+    color: "#e6c984",
+  },
+  checkmarkContainer: {
+    marginLeft: 6,
   },
   purchaseButton: {
     backgroundColor: "#7f5c3c",
-    paddingVertical: 16,
     borderRadius: 12,
+    height: 50,
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 15,
+    marginBottom: 20,
   },
   disabledButton: {
     opacity: 0.7,
   },
   purchaseButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
   },
   errorText: {
-    color: "#cc6b5a",
-    marginBottom: 10,
+    color: "#ff6b6b",
+    backgroundColor: "rgba(255, 107, 107, 0.1)",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
     textAlign: "center",
   },
   termsText: {
-    color: "#888",
+    color: "#999",
     fontSize: 11,
     textAlign: "center",
-    marginTop: 10,
+    marginBottom: 14,
+    lineHeight: 16,
   },
   legalLinksContainer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 15,
-    marginBottom: 10,
   },
   legalLinkText: {
-    color: "#fff",
-    fontSize: 12,
+    color: "#bbb",
+    fontSize: 13,
     textDecorationLine: "underline",
   },
   legalLinkDivider: {
-    color: "#888",
-    fontSize: 12,
+    color: "#777",
     marginHorizontal: 8,
-  },
-  button: {
-    backgroundColor: "#7f5c3c",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginTop: 20,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
   },
   alreadySubscribedContainer: {
     flex: 1,
@@ -597,7 +823,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   alreadySubscribedTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "bold",
     color: "#fff",
     marginTop: 20,
@@ -605,27 +831,37 @@ const styles = StyleSheet.create({
   },
   alreadySubscribedText: {
     fontSize: 16,
-    color: "#aaa",
+    color: "#bbb",
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 30,
+    lineHeight: 22,
   },
-  devModeContainer: {
-    padding: 10,
-    backgroundColor: "rgba(127, 92, 60, 0.7)",
-    marginHorizontal: 20,
-    borderRadius: 8,
-    marginBottom: 16,
+  button: {
+    backgroundColor: "#7f5c3c",
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 12,
   },
-  devModeText: {
+  buttonText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "bold",
-    textAlign: "center",
   },
-  devModeFooter: {
-    color: "#888",
-    fontSize: 11,
-    textAlign: "center",
-    marginTop: 10,
+  unselectedPackage: {
+    backgroundColor: "rgba(30, 30, 30, 0.6)",
+    borderColor: "rgba(200, 200, 200, 0.1)",
+  },
+  unselectedText: {
+    color: "#aaa",
+  },
+  packageDescriptionContainer: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    paddingTop: 8,
+  },
+  packageDescription: {
+    fontSize: 12,
+    color: "#fff",
   },
 });
