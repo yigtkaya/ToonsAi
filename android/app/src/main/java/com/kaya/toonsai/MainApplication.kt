@@ -16,6 +16,10 @@ import com.facebook.soloader.SoLoader
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
 
+// Import Sentry
+import io.sentry.SentryAndroid
+import io.sentry.android.core.SentryAndroidOptions
+
 class MainApplication : Application(), ReactApplication {
 
   override val reactNativeHost: ReactNativeHost = ReactNativeHostWrapper(
@@ -42,6 +46,19 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    
+    // Initialize Sentry
+    try {
+      SentryAndroid.init(this) { options: SentryAndroidOptions ->
+        options.dsn = "https://e8a749dc4eb3c6ff8621d970d69be62f@o4508661105098752.ingest.de.sentry.io/4509077121007696"
+        // Enable or disable Sentry based on build type
+        options.isEnabled = !BuildConfig.DEBUG
+      }
+    } catch (e: Exception) {
+      // Log any Sentry initialization errors but don't crash
+      android.util.Log.e("Sentry", "Sentry initialization failed", e)
+    }
+    
     SoLoader.init(this, OpenSourceMergedSoMapping)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       // If you opted-in for the New Architecture, we load the native entry point for this app.

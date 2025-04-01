@@ -1,4 +1,5 @@
 import { Mixpanel } from 'mixpanel-react-native';
+import { Platform } from 'react-native';
 
 // Initialize Mixpanel with your project token
 const MIXPANEL_TOKEN = '177024a613b1870c44e5bcd10d5264dc';
@@ -6,7 +7,16 @@ const trackAutomaticEvents = true;
 
 // Create a Mixpanel instance
 const mixpanel = new Mixpanel(MIXPANEL_TOKEN, trackAutomaticEvents);
-mixpanel.init();
+
+// Initialize Mixpanel safely
+try {
+  // Initialize Mixpanel with async pattern
+  mixpanel.init().catch(error => {
+    console.error('Failed to initialize Mixpanel:', error);
+  });
+} catch (error) {
+  console.error('Error during Mixpanel setup:', error);
+}
 
 // Analytics utility functions
 const Analytics = {
@@ -16,11 +26,15 @@ const Analytics = {
    * @param userProperties - Additional properties to associate with the user
    */
   identifyUser: (userId: string, userProperties?: Record<string, any>) => {
-    mixpanel.identify(userId);
-    
-    // Add user properties as part of an event if needed
-    if (userProperties) {
-      mixpanel.track('User Identified', userProperties);
+    try {
+      mixpanel.identify(userId);
+      
+      // Add user properties as part of an event if needed
+      if (userProperties) {
+        mixpanel.track('User Identified', userProperties);
+      }
+    } catch (error) {
+      console.error('Error identifying user in Mixpanel:', error);
     }
   },
 
@@ -92,7 +106,11 @@ const Analytics = {
    * @param properties - Additional properties to track with the event
    */
   trackEvent: (eventName: string, properties?: Record<string, any>) => {
-    mixpanel.track(eventName, properties);
+    try {
+      mixpanel.track(eventName, properties);
+    } catch (error) {
+      console.error(`Error tracking event "${eventName}" in Mixpanel:`, error);
+    }
   }
 };
 

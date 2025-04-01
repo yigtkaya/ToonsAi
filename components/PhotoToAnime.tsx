@@ -30,6 +30,7 @@ import {
   getDailyLimit,
 } from "@/lib/auth/usageTracking";
 import Analytics from "@/lib/analytics";
+import ErrorTracking from "@/lib/errorTracking";
 
 // Define the anime style options
 interface AnimeStyle {
@@ -110,6 +111,9 @@ export const PhotoToAnime = () => {
         setDailyLimit(limit);
       } catch (error) {
         console.error("Error loading usage info:", error);
+        ErrorTracking.captureException(error as Error, {
+          context: "loadUsageInfo",
+        });
       }
     };
 
@@ -117,42 +121,75 @@ export const PhotoToAnime = () => {
   }, []);
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
 
-    if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
+      if (!result.canceled) {
+        setSelectedImage(result.assets[0].uri);
+        ErrorTracking.addBreadcrumb("Image selected", "user_action", {
+          success: true,
+        });
+      }
+    } catch (error) {
+      ErrorTracking.captureException(error as Error, {
+        context: "pickImage",
+      });
+      Alert.alert("Error", "Failed to select image. Please try again.");
     }
   };
 
   const handleStyleSelect = async (style: AnimeStyle) => {
-    // For non-subscribers, show paywall when they try to access pro styles
-    if (!hasSubscription && style.requiresPro) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      // Show paywall when user tries to select a PRO style
-      await showPaywall(true); // Force show the paywall
-      return;
+    try {
+      // For non-subscribers, show paywall when they try to access pro styles
+      if (!hasSubscription && style.requiresPro) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        // Show paywall when user tries to select a PRO style
+        ErrorTracking.addBreadcrumb(
+          "Pro style selected by free user",
+          "user_action",
+          {
+            style_id: style.id,
+            style_name: style.name,
+          }
+        );
+        await showPaywall(true); // Force show the paywall
+        return;
+      }
+
+      // Only provide haptic feedback for actual style changes
+      if (selectedStyle !== style.id) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        // Track style selection
+        Analytics.trackStyleApplied(style.name);
+        ErrorTracking.addBreadcrumb("Style selected", "user_action", {
+          style_id: style.id,
+          style_name: style.name,
+        });
+      }
+
+      setSelectedStyle(style.id);
+    } catch (error) {
+      ErrorTracking.captureException(error as Error, {
+        context: "handleStyleSelect",
+        style_id: style.id,
+        style_name: style.name,
+      });
     }
-
-    // Only provide haptic feedback for actual style changes
-    if (selectedStyle !== style.id) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      // Track style selection
-      Analytics.trackStyleApplied(style.name);
-    }
-
-    setSelectedStyle(style.id);
   };
 
   const generateImage = async () => {
     if (!selectedImage || !selectedStyle) return;
 
     setIsGenerating(true);
+    ErrorTracking.addBreadcrumb("Image generation started", "app_action", {
+      style: selectedStyle,
+    });
 
     try {
       // Generate a prompt based on the selected style
@@ -177,6 +214,10 @@ export const PhotoToAnime = () => {
       );
 
       setResultImage(generatedImageUri);
+      ErrorTracking.addBreadcrumb("Image generation completed", "app_action", {
+        success: true,
+        style: styleName,
+      });
 
       // Track successful generation
       Analytics.trackEvent("Generation Completed", {
@@ -190,7 +231,13 @@ export const PhotoToAnime = () => {
         "We couldn't generate your image. Please try again."
       );
 
-      // Track failed generation
+      // Track failed generation with Sentry and Mixpanel
+      ErrorTracking.captureException(error as Error, {
+        context: "generateImage",
+        style: selectedStyle,
+      });
+
+      // Track failed generation with Mixpanel
       Analytics.trackEvent("Generation Failed", {
         style: selectedStyle,
         error: String(error),
@@ -229,9 +276,16 @@ export const PhotoToAnime = () => {
       await AsyncStorage.setItem("saved_images", JSON.stringify(savedImages));
 
       Alert.alert("Image Saved", "Your image has been saved to your gallery.");
+      ErrorTracking.addBreadcrumb("Image saved to gallery", "user_action", {
+        style: selectedStyle,
+      });
     } catch (error) {
       console.error("Failed to save image:", error);
       Alert.alert("Error", "Failed to save your image. Please try again.");
+      ErrorTracking.captureException(error as Error, {
+        context: "saveImage",
+        style: selectedStyle,
+      });
     }
   };
 

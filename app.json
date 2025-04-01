@@ -28,7 +28,15 @@
           "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "cover",
-          "backgroundColor": "#f1e4c6"
+          "backgroundColor": "#f5edd7"
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "kaya-42"
         }
       ]
     ],

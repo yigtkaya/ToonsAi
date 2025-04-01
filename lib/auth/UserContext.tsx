@@ -13,6 +13,7 @@ import {
   hasActiveSubscription,
 } from "../revenuecat/client";
 import Analytics from "../analytics";
+import ErrorTracking from "../errorTracking";
 
 // Define the context types
 interface UserContextType {
@@ -76,6 +77,11 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           anonymous: true,
           first_seen: new Date().toISOString(),
         });
+
+        // Identify user in Sentry
+        ErrorTracking.setUser(currentSession.user.id, {
+          anonymous: true,
+        });
       } else {
         // Sign in anonymously if no session exists
         await signIn();
@@ -86,6 +92,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       setHasSubscription(subscribed);
     } catch (error) {
       console.error("Error initializing user:", error);
+      ErrorTracking.captureException(error as Error, {
+        context: "initializeUser",
+      });
       setError(
         "Failed to connect to authentication service. Please check your internet connection and try again."
       );
@@ -111,6 +120,11 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             anonymous: true,
           });
 
+          // Identify user in Sentry
+          ErrorTracking.setUser(newSession.user.id, {
+            anonymous: true,
+          });
+
           // Check subscription status
           const subscribed = await checkSubscription();
           setHasSubscription(subscribed);
@@ -122,6 +136,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
               subscription_type: "pro",
             });
           }
+        } else {
+          // Clear user from Sentry if logged out
+          ErrorTracking.setUser(null as any);
         }
       }
     );
@@ -150,11 +167,20 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           anonymous: true,
           first_seen: new Date().toISOString(),
         });
+
+        // Identify user in Sentry
+        ErrorTracking.setUser(user.id, {
+          anonymous: true,
+          first_seen: new Date().toISOString(),
+        });
       } else {
         setError("Failed to sign in anonymously. Please try again.");
       }
     } catch (error) {
       console.error("Error signing in:", error);
+      ErrorTracking.captureException(error as Error, {
+        context: "signIn",
+      });
       setError(
         "Failed to sign in. Please check your internet connection and try again."
       );

@@ -18,6 +18,26 @@ import Onboarding from "@/components/Onboarding";
 import { UserProvider } from "@/lib/auth/UserContext";
 import PaywallController from "@/components/PaywallController";
 import { getRemainingGenerations } from "@/lib/auth/usageTracking";
+import * as Sentry from "@sentry/react-native";
+
+// Initialize Sentry with error handling
+try {
+  Sentry.init({
+    dsn: "https://e8a749dc4eb3c6ff8621d970d69be62f@o4508661105098752.ingest.de.sentry.io/4509077121007696",
+    enableAutoSessionTracking: true,
+    // Set a higher sample rate for performance monitoring
+    tracesSampleRate: 1.0,
+    // Don't trigger on development builds
+    enabled: !__DEV__,
+    // Debug mode in dev only
+    debug: __DEV__,
+    // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+    // spotlight: __DEV__,
+  });
+  console.log("Sentry initialized successfully");
+} catch (error) {
+  console.error("Failed to initialize Sentry:", error);
+}
 
 // Keep the splash screen visible while we check onboarding status
 SplashScreen.preventAutoHideAsync();
@@ -170,6 +190,13 @@ const RootLayout = function RootLayout() {
                 animation: "slide_from_right",
               }}
             />
+            <Stack.Screen
+              name="sentry-test"
+              options={{
+                headerShown: true,
+                animation: "slide_from_right",
+              }}
+            />
           </Stack>
           <PaywallController />
           <StatusBar style="auto" />
@@ -179,4 +206,4 @@ const RootLayout = function RootLayout() {
   );
 };
 
-export default RootLayout;
+export default Sentry.wrap(RootLayout);

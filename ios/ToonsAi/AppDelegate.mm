@@ -2,11 +2,29 @@
 
 #import <React/RCTBundleURLProvider.h>
 #import <React/RCTLinkingManager.h>
+#import <Sentry/Sentry.h>
 
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
+  // Initialize Sentry
+  NSError *error = nil;
+  SentryOptions *options = [[SentryOptions alloc] init];
+  options.dsn = @"https://e8a749dc4eb3c6ff8621d970d69be62f@o4508661105098752.ingest.de.sentry.io/4509077121007696";
+  
+  // Disable in DEBUG mode
+  #ifdef DEBUG
+    options.enabled = NO;
+  #else
+    options.enabled = YES;
+  #endif
+  
+  // Initialize with error handling
+  if (![SentrySDK startWithOptions:options error:&error]) {
+    NSLog(@"Sentry initialization failed: %@", error);
+  }
+  
   self.moduleName = @"main";
 
   // You can add your custom initial props in the dictionary below.

@@ -28,6 +28,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useUser } from "@/lib/auth/UserContext";
 import { purchasePackage } from "@/lib/revenuecat/client";
 import Analytics from "@/lib/analytics";
+import ErrorTracking from "@/lib/errorTracking";
 
 // Check if we're using placeholder API keys
 const isUsingPlaceholderKeys =
@@ -119,6 +120,9 @@ export default function PaywallScreen() {
   useEffect(() => {
     // Track paywall view
     Analytics.trackPaywallView(showOnStart ? "app_start" : "in_app");
+    ErrorTracking.addBreadcrumb("Paywall viewed", "screen_view", {
+      source: showOnStart ? "app_start" : "in_app",
+    });
 
     // Fetch subscription packages
     fetchPackages();
@@ -160,8 +164,15 @@ export default function PaywallScreen() {
       // Always use mock packages for consistent display
       setPackages(MOCK_PACKAGES);
       setSelectedPackage("toonsai_yearly"); // Default to yearly plan
+      ErrorTracking.addBreadcrumb("Paywall packages loaded", "app_action", {
+        using_mock_data: true,
+      });
     } catch (err) {
       console.error("Error in fetchPackages:", err);
+      ErrorTracking.captureException(err as Error, {
+        context: "fetchPackages",
+      });
+
       // Fallback to mock data
       setPackages(MOCK_PACKAGES);
       setSelectedPackage("toonsai_yearly");
@@ -176,6 +187,9 @@ export default function PaywallScreen() {
     try {
       setPurchasing(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      ErrorTracking.addBreadcrumb("Purchase initiated", "user_action", {
+        package: selectedPackage,
+      });
 
       // Find the selected package
       const packageToPurchase = packages.find(
@@ -184,6 +198,10 @@ export default function PaywallScreen() {
 
       if (!packageToPurchase) {
         setError("Selected package not found");
+        ErrorTracking.logMessage("Selected package not found", "error", {
+          selected_package: selectedPackage,
+          available_packages: packages.map((p) => p.identifier),
+        });
         return;
       }
 
@@ -209,6 +227,10 @@ export default function PaywallScreen() {
           packageToPurchase.identifier,
           packageToPurchase.product.price
         );
+        ErrorTracking.addBreadcrumb("Purchase completed", "user_action", {
+          package: packageToPurchase.identifier,
+          success: true,
+        });
       }
 
       // Update subscription status
@@ -219,9 +241,22 @@ export default function PaywallScreen() {
     } catch (err: any) {
       console.error("Error purchasing package:", err);
 
+      // Log the purchase error to Sentry
+      ErrorTracking.captureException(err as Error, {
+        context: "handlePurchase",
+        package: selectedPackage,
+      });
+
       // Check if the error message indicates cancellation
       if (err.message && err.message.includes("canceled")) {
         setError(null);
+        ErrorTracking.addBreadcrumb(
+          "Purchase canceled by user",
+          "user_action",
+          {
+            package: selectedPackage,
+          }
+        );
       } else {
         setError("Failed to complete purchase. Please try again later.");
       }
@@ -233,6 +268,7 @@ export default function PaywallScreen() {
   const handleClose = async () => {
     // Allow close via the UI button unconditionally
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    ErrorTracking.addBreadcrumb("Paywall closed by user", "user_action");
 
     // Set a grace period to prevent immediate reopening (30 minutes)
     if (!hasSubscription) {
@@ -242,6 +278,9 @@ export default function PaywallScreen() {
         await AsyncStorage.setItem("paywallGracePeriod", expireTime.toString());
       } catch (error) {
         console.error("Error setting paywall grace period:", error);
+        ErrorTracking.captureException(error as Error, {
+          context: "handleClose",
+        });
       }
     }
 
