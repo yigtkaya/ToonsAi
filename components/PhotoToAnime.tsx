@@ -29,6 +29,7 @@ import {
   getRemainingGenerations,
   getDailyLimit,
 } from "@/lib/auth/usageTracking";
+import Analytics from "@/lib/analytics";
 
 // Define the anime style options
 interface AnimeStyle {
@@ -140,6 +141,9 @@ export const PhotoToAnime = () => {
     // Only provide haptic feedback for actual style changes
     if (selectedStyle !== style.id) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Track style selection
+      Analytics.trackStyleApplied(style.name);
     }
 
     setSelectedStyle(style.id);
@@ -155,6 +159,13 @@ export const PhotoToAnime = () => {
       const style = animeStyles.find((s) => s.id === selectedStyle);
       const styleName = style ? style.name : "cartoon";
 
+      // Track generate button press
+      Analytics.trackGeneratePress({
+        style: styleName,
+        is_pro_user: hasSubscription,
+        remaining_generations: remainingGenerations,
+      });
+
       // Create the prompt for the Gemini API
       const prompt = `Transform this photo into a ${styleName} style animated character. Make it appealing and professional looking.`;
       console.log(`Generating image with style: ${styleName}`);
@@ -166,12 +177,24 @@ export const PhotoToAnime = () => {
       );
 
       setResultImage(generatedImageUri);
+
+      // Track successful generation
+      Analytics.trackEvent("Generation Completed", {
+        style: styleName,
+        success: true,
+      });
     } catch (error) {
       console.error("Failed to generate image:", error);
       Alert.alert(
         "Generation Failed",
         "We couldn't generate your image. Please try again."
       );
+
+      // Track failed generation
+      Analytics.trackEvent("Generation Failed", {
+        style: selectedStyle,
+        error: String(error),
+      });
     } finally {
       setIsGenerating(false);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -14,6 +14,7 @@ import { Colors } from "@/constants/Colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import Analytics from "@/lib/analytics";
 
 const { width, height } = Dimensions.get("window");
 
@@ -80,6 +81,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
   const colors = Colors[colorScheme ?? "light"];
 
+  // Track when onboarding is viewed
+  useEffect(() => {
+    Analytics.trackOnboardingView();
+  }, []);
+
   const renderItem = ({ item }: { item: OnboardingItem }) => {
     return (
       <View style={styles.slide}>
@@ -106,6 +112,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   };
 
   const handleComplete = () => {
+    // Track onboarding completion
+    Analytics.trackOnboardingComplete();
+
     // Save that onboarding is completed
     AsyncStorage.setItem("onboardingCompleted", "true");
     onComplete();

@@ -12,6 +12,7 @@ import {
   initializeRevenueCat,
   hasActiveSubscription,
 } from "../revenuecat/client";
+import Analytics from "../analytics";
 
 // Define the context types
 interface UserContextType {
@@ -66,8 +67,15 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       if (currentSession) {
         setSession(currentSession);
         setUser(currentSession.user);
+
         // Initialize RevenueCat with the user's ID
         initializeRevenueCat(currentSession.user.id);
+
+        // Identify user in Mixpanel
+        Analytics.identifyUser(currentSession.user.id, {
+          anonymous: true,
+          first_seen: new Date().toISOString(),
+        });
       } else {
         // Sign in anonymously if no session exists
         await signIn();
@@ -97,9 +105,23 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         if (newSession?.user) {
           // Initialize RevenueCat whenever the user changes
           initializeRevenueCat(newSession.user.id);
+
+          // Identify user in Mixpanel when auth state changes
+          Analytics.identifyUser(newSession.user.id, {
+            anonymous: true,
+          });
+
           // Check subscription status
           const subscribed = await checkSubscription();
           setHasSubscription(subscribed);
+
+          // Track subscription status in Mixpanel
+          if (subscribed) {
+            Analytics.trackEvent("Subscription Status", {
+              has_subscription: true,
+              subscription_type: "pro",
+            });
+          }
         }
       }
     );
@@ -122,6 +144,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       if (user) {
         // Initialize RevenueCat with the new user's ID
         initializeRevenueCat(user.id);
+
+        // Identify new user in Mixpanel
+        Analytics.identifyUser(user.id, {
+          anonymous: true,
+          first_seen: new Date().toISOString(),
+        });
       } else {
         setError("Failed to sign in anonymously. Please try again.");
       }
@@ -163,7 +191,20 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const checkSubscription = async (): Promise<boolean> => {
     try {
       const subscribed = await hasActiveSubscription();
-      setHasSubscription(subscribed);
+
+      // Only update analytics if subscription status changed
+      if (subscribed !== hasSubscription) {
+        setHasSubscription(subscribed);
+
+        // Track subscription status in Mixpanel
+        Analytics.trackEvent("Subscription Status Changed", {
+          has_subscription: subscribed,
+          subscription_type: subscribed ? "pro" : "free",
+        });
+      } else {
+        setHasSubscription(subscribed);
+      }
+
       return subscribed;
     } catch (error) {
       console.error("Error checking subscription:", error);

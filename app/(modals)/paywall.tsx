@@ -27,6 +27,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useUser } from "@/lib/auth/UserContext";
 import { purchasePackage } from "@/lib/revenuecat/client";
+import Analytics from "@/lib/analytics";
 
 // Check if we're using placeholder API keys
 const isUsingPlaceholderKeys =
@@ -116,6 +117,9 @@ export default function PaywallScreen() {
   const isTablet = screenWidth >= 768;
 
   useEffect(() => {
+    // Track paywall view
+    Analytics.trackPaywallView(showOnStart ? "app_start" : "in_app");
+
     // Fetch subscription packages
     fetchPackages();
 
@@ -183,12 +187,28 @@ export default function PaywallScreen() {
         return;
       }
 
+      // Track subscription button press
+      if (packageToPurchase?.product) {
+        Analytics.trackSubscribeButtonPress(
+          packageToPurchase.identifier,
+          packageToPurchase.product.price
+        );
+      }
+
       if (isUsingPlaceholderKeys || usingMockData) {
         // Use our custom purchase function that handles mock data
         await purchasePackage(packageToPurchase);
       } else {
         // Use the actual RevenueCat purchase
         await Purchases.purchasePackage(packageToPurchase);
+      }
+
+      // Track successful subscription
+      if (packageToPurchase?.product) {
+        Analytics.trackSubscriptionComplete(
+          packageToPurchase.identifier,
+          packageToPurchase.product.price
+        );
       }
 
       // Update subscription status
