@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ThemedText } from "./ThemedText";
 import { ThemedView } from "./ThemedView";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,6 +25,10 @@ import { useUser } from "@/lib/auth/UserContext";
 import { showPaywall } from "@/lib/navigation/showPaywall";
 import LargeImageRenderer from "./LargeImageRenderer";
 import { generateImage as geminiGenerateImage } from "@/lib/api/gemini";
+import {
+  getRemainingGenerations,
+  getDailyLimit,
+} from "@/lib/auth/usageTracking";
 
 // Define the anime style options
 interface AnimeStyle {
@@ -36,60 +40,40 @@ interface AnimeStyle {
 
 const animeStyles: AnimeStyle[] = [
   {
+    id: "ghibli",
+    name: "Ghibli",
+    image: require("../assets/styles/ghibli.png"),
+    requiresPro: false,
+  },
+  {
     id: "anime",
     name: "Anime (Japanese Style)",
-    image: {
-      uri: "https://via.placeholder.com/100x100/dbc6a2/FFFFFF?text=Anime",
-    },
+    image: require("../assets/styles/anime.png"),
     requiresPro: true,
   },
   {
     id: "pixar",
     name: "Pixar / 3D Animation",
-    image: {
-      uri: "https://via.placeholder.com/100x100/7f5c3c/FFFFFF?text=Pixar",
-    },
+    image: require("../assets/styles/pixar.png"),
     requiresPro: true,
   },
   {
     id: "western_comic",
     name: "Western Comic Style",
-    image: {
-      uri: "https://via.placeholder.com/100x100/f1e4c6/333333?text=Comic",
-    },
+    image: require("../assets/styles/western-comic.png"),
     requiresPro: true,
   },
   {
     id: "vintage_disney",
     name: "Vintage Disney Style",
-    image: {
-      uri: "https://via.placeholder.com/100x100/b38a61/FFFFFF?text=Disney",
-    },
+    image: require("../assets/styles/disney.png"),
     requiresPro: true,
   },
   {
     id: "flat_vector",
     name: "Flat Modern Vector Style",
-    image: {
-      uri: "https://via.placeholder.com/100x100/e0d0b3/333333?text=Vector",
-    },
+    image: require("../assets/styles/flat-modern.png"),
     requiresPro: true,
-  },
-  {
-    id: "sketchbook",
-    name: "Sketchbook / Pencil-Doodle Style",
-    image: {
-      uri: "https://via.placeholder.com/100x100/7f5c3c/FFFFFF?text=Sketch",
-    },
-    requiresPro: true,
-  },
-  {
-    id: "ghibli",
-    name: "Ghibli",
-    image: {
-      uri: "https://via.placeholder.com/100x100/dbc6a2/FFFFFF?text=Ghibli",
-    },
-    requiresPro: false,
   },
 ];
 
@@ -111,6 +95,25 @@ export const PhotoToAnime = () => {
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [remainingGenerations, setRemainingGenerations] = useState<number>(0);
+  const [dailyLimit, setDailyLimit] = useState<number>(5); // Default value
+
+  // Load usage information when component mounts
+  useEffect(() => {
+    const loadUsageInfo = async () => {
+      try {
+        const remaining = await getRemainingGenerations();
+        const limit = await getDailyLimit();
+
+        setRemainingGenerations(remaining);
+        setDailyLimit(limit);
+      } catch (error) {
+        console.error("Error loading usage info:", error);
+      }
+    };
+
+    loadUsageInfo();
+  }, []);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -213,6 +216,10 @@ export const PhotoToAnime = () => {
     router.push("/gallery");
   };
 
+  const handleUpgradePress = () => {
+    showPaywall(true);
+  };
+
   // Screen for viewing the result
   if (resultImage) {
     return (
@@ -283,13 +290,79 @@ export const PhotoToAnime = () => {
         </ThemedText>
       </View>
 
+      {/* Premium badge for premium users */}
+      {hasSubscription && (
+        <View style={styles.premiumBadgeContainer}>
+          <View style={styles.premiumBadge}>
+            <Ionicons name="star" size={14} color="#7f5c3c" />
+            <ThemedText style={styles.premiumText}>PREMIUM</ThemedText>
+          </View>
+        </View>
+      )}
+
+      {/* Upgrade banner for free users */}
+      {!hasSubscription && (
+        <View style={styles.upgradeBanner}>
+          <View style={styles.usageInfo}>
+            <ThemedText style={styles.usageText}>
+              Daily Usage: {remainingGenerations}/{dailyLimit} images
+            </ThemedText>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.max(
+                      (remainingGenerations / dailyLimit) * 100,
+                      0
+                    )}%`,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+
+          <ThemedText style={styles.upgradeText}>
+            Get unlimited generations, priority processing, and more styles
+          </ThemedText>
+
+          <TouchableOpacity
+            style={styles.upgradeButton}
+            onPress={handleUpgradePress}
+          >
+            <Ionicons
+              name="star"
+              size={16}
+              color="#fff"
+              style={styles.buttonIcon}
+            />
+            <ThemedText style={styles.upgradeButtonText}>
+              Upgrade to Premium
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <View style={[styles.uploadContainer, { borderColor: colors.tint }]}>
         {selectedImage ? (
-          <Image
-            source={{ uri: selectedImage }}
-            style={styles.selectedImage}
-            resizeMode="cover"
-          />
+          <View style={styles.selectedImageContainer}>
+            <Image
+              source={{ uri: selectedImage }}
+              style={styles.selectedImage}
+              resizeMode="cover"
+            />
+            <TouchableOpacity
+              style={styles.deleteImageButton}
+              onPress={() => {
+                setSelectedImage(null);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }}
+            >
+              <View style={styles.deleteButtonInner}>
+                <Ionicons name="close-circle" size={24} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+          </View>
         ) : (
           <TouchableOpacity
             style={[styles.uploadButton, { borderColor: colors.tint }]}
@@ -310,43 +383,6 @@ export const PhotoToAnime = () => {
             </ThemedText>
           </TouchableOpacity>
         )}
-      </View>
-
-      <View style={styles.stylesSection}>
-        <ThemedText style={styles.sectionTitle}>Choose a Style:</ThemedText>
-        <View style={styles.stylesGrid}>
-          {animeStyles.map((style) => {
-            const isSelected = selectedStyle === style.id;
-            const isPro = style.requiresPro;
-            const needsBlur = isPro && !hasSubscription;
-
-            return (
-              <TouchableOpacity
-                key={style.id}
-                style={[
-                  styles.styleItem,
-                  isSelected && {
-                    borderColor: colors.tint,
-                    borderWidth: 2,
-                  },
-                ]}
-                onPress={() => handleStyleSelect(style)}
-              >
-                <View style={styles.styleImageContainer}>
-                  <Image source={style.image} style={styles.styleImage} />
-                  {needsBlur && (
-                    <BlurView intensity={7} style={styles.blurOverlay}>
-                      <View style={styles.proTag}>
-                        <Text style={styles.proTagText}>PRO</Text>
-                      </View>
-                    </BlurView>
-                  )}
-                </View>
-                <ThemedText style={styles.styleName}>{style.name}</ThemedText>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
       </View>
 
       <TouchableOpacity
@@ -381,6 +417,52 @@ export const PhotoToAnime = () => {
           {isGenerating ? "Generating..." : "Generate Image"}
         </ThemedText>
       </TouchableOpacity>
+
+      <View style={styles.stylesSection}>
+        <ThemedText style={styles.sectionTitle}>Choose a Style:</ThemedText>
+        <View style={styles.stylesGrid}>
+          {animeStyles.map((style) => {
+            const isSelected = selectedStyle === style.id;
+            const isPro = style.requiresPro;
+            const needsBlur = isPro && !hasSubscription;
+
+            return (
+              <TouchableOpacity
+                key={style.id}
+                style={[
+                  styles.styleItem,
+                  isSelected && styles.selectedStyleItem,
+                ]}
+                onPress={() => handleStyleSelect(style)}
+              >
+                <View
+                  style={[
+                    styles.styleImageContainer,
+                    isSelected && styles.selectedStyleImageContainer,
+                  ]}
+                >
+                  <Image source={style.image} style={styles.styleImage} />
+                  {needsBlur && (
+                    <BlurView intensity={7} style={styles.blurOverlay}>
+                      <View style={styles.proTag}>
+                        <Text style={styles.proTagText}>PRO</Text>
+                      </View>
+                    </BlurView>
+                  )}
+                </View>
+                <ThemedText
+                  style={[
+                    styles.styleName,
+                    isSelected && styles.selectedStyleName,
+                  ]}
+                >
+                  {style.name}
+                </ThemedText>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
 };
@@ -415,9 +497,28 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
     borderRadius: 12,
   },
+  selectedImageContainer: {
+    width: "100%",
+    height: "100%",
+    position: "relative",
+  },
   selectedImage: {
     width: "100%",
     height: "100%",
+  },
+  deleteImageButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    zIndex: 10,
+  },
+  deleteButtonInner: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   stylesSection: {
     marginVertical: 16,
@@ -433,26 +534,46 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   styleItem: {
-    width: "23%",
-    marginBottom: 15,
+    width: "30%",
+    marginBottom: 25,
+    alignItems: "center",
+  },
+  selectedStyleItem: {
+    transform: [{ scale: 1.05 }],
+  },
+  styleImageContainer: {
+    position: "relative",
+    width: "100%",
+    height: 100,
     borderRadius: 8,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "#e0d0b3",
   },
-  styleImageContainer: {
-    position: "relative",
-    width: "100%",
-    height: 70,
+  selectedStyleImageContainer: {
+    borderWidth: 3,
+    borderColor: "#7f5c3c",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   styleImage: {
     width: "100%",
-    height: 70,
+    height: "100%",
+    resizeMode: "cover",
   },
   styleName: {
     fontSize: 12,
     textAlign: "center",
-    padding: 4,
+    marginTop: 6,
+    paddingHorizontal: 2,
+  },
+  selectedStyleName: {
+    fontWeight: "bold",
+    fontSize: 13,
+    color: "#7f5c3c",
   },
   generateButton: {
     flexDirection: "row",
@@ -460,8 +581,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 16,
     borderRadius: 30,
-    marginTop: 10,
-    marginBottom: 20,
+    marginVertical: 16,
   },
   buttonIcon: {
     marginRight: 8,
@@ -524,5 +644,67 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontWeight: "bold",
     fontSize: 12,
+  },
+  premiumBadgeContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  premiumBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(219, 198, 162, 0.25)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#b38a61",
+  },
+  premiumText: {
+    color: "#7f5c3c",
+    fontWeight: "bold",
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  upgradeBanner: {
+    backgroundColor: "rgba(179, 138, 97, 0.15)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  usageInfo: {
+    marginBottom: 12,
+  },
+  usageText: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: "rgba(224, 208, 179, 0.5)",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#b38a61",
+    borderRadius: 3,
+  },
+  upgradeText: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  upgradeButton: {
+    backgroundColor: "#2962FF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 25,
+  },
+  upgradeButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
   },
 });

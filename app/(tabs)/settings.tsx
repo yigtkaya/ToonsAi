@@ -217,7 +217,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* Sign Out Option */}
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.signOutButton, { borderColor: "#cc6b5a" }]}
           onPress={handleSignOut}
         >
@@ -230,7 +230,7 @@ export default function SettingsScreen() {
           <ThemedText style={[styles.signOutText, { color: "#cc6b5a" }]}>
             Sign Out
           </ThemedText>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </ScrollView>
     </SafeAreaView>
   );

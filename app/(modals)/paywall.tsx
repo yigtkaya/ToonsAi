@@ -79,7 +79,7 @@ export default function PaywallScreen() {
         // If configuration allows close button, show it after 3 seconds
         setTimeout(() => {
           setShowCloseButton(true);
-        }, 1000);
+        }, 5000);
       }
     } catch (error) {
       console.error("Error checking close button config:", error);
@@ -287,14 +287,16 @@ export default function PaywallScreen() {
       <SafeAreaView style={styles.safeArea} edges={["top", "right", "left"]}>
         <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom }}>
           <View style={styles.header}>
-            {showCloseButton && (
-              <TouchableOpacity
-                onPress={handleClose}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-            )}
+            <View style={styles.closeButtonContainer}>
+              {showCloseButton && (
+                <TouchableOpacity
+                  onPress={handleClose}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {usingMockData && (
@@ -392,6 +394,30 @@ export default function PaywallScreen() {
               Store after purchase.
             </Text>
 
+            <View style={styles.legalLinksContainer}>
+              <TouchableOpacity
+                onPress={() =>
+                  Alert.alert(
+                    "Privacy Policy",
+                    "Privacy Policy will be available soon."
+                  )
+                }
+              >
+                <Text style={styles.legalLinkText}>Privacy Policy</Text>
+              </TouchableOpacity>
+              <Text style={styles.legalLinkDivider}>|</Text>
+              <TouchableOpacity
+                onPress={() =>
+                  Alert.alert(
+                    "Terms of Service",
+                    "Terms of Service will be available soon."
+                  )
+                }
+              >
+                <Text style={styles.legalLinkText}>Terms of Service</Text>
+              </TouchableOpacity>
+            </View>
+
             {usingMockData && (
               <Text
                 style={[styles.devModeFooter, { marginBottom: insets.bottom }]}
@@ -419,6 +445,12 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: "row",
     justifyContent: "flex-end",
+  },
+  closeButtonContainer: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
   closeButton: {
     padding: 8,
@@ -528,6 +560,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: "center",
     marginTop: 10,
+  },
+  legalLinksContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 15,
+    marginBottom: 10,
+  },
+  legalLinkText: {
+    color: "#fff",
+    fontSize: 12,
+    textDecorationLine: "underline",
+  },
+  legalLinkDivider: {
+    color: "#888",
+    fontSize: 12,
+    marginHorizontal: 8,
   },
   button: {
     backgroundColor: "#7f5c3c",

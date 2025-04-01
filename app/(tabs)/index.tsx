@@ -145,46 +145,6 @@ export default function HomeScreen() {
         {/* PhotoToAnime component */}
         <PhotoToAnime />
 
-        {/* Upgrade banner for free users only */}
-        {!hasSubscription && (
-          <View style={styles.upgradeBanner}>
-            <View style={styles.usageInfo}>
-              <ThemedText style={styles.usageText}>
-                Daily Usage: {remainingGenerations}/{dailyLimit} images
-              </ThemedText>
-              <View style={styles.progressBar}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${(remainingGenerations / dailyLimit) * 100}%`,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-
-            <ThemedText style={styles.upgradeText}>
-              Get unlimited generations, priority processing, and more styles
-            </ThemedText>
-
-            <TouchableOpacity
-              style={styles.upgradeButton}
-              onPress={handleUpgradePress}
-            >
-              <Ionicons
-                name="star"
-                size={16}
-                color="#fff"
-                style={styles.buttonIcon}
-              />
-              <ThemedText style={styles.upgradeButtonText}>
-                Upgrade to Premium
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Test buttons section */}
         <View style={styles.testSection}>
           <ThemedText style={styles.testSectionTitle}>

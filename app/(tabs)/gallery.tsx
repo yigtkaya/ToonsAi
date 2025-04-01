@@ -163,19 +163,6 @@ const Gallery = () => {
               color={columns === 2 ? "#fff" : colors.text}
             />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.columnButton,
-              columns === 3 && { backgroundColor: colors.tint },
-            ]}
-            onPress={() => setColumns(3)}
-          >
-            <Ionicons
-              name="grid-outline"
-              size={20}
-              color={columns === 3 ? "#fff" : colors.text}
-            />
-          </TouchableOpacity>
         </View>
       </View>
 
