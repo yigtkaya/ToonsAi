@@ -165,7 +165,7 @@ export const PhotoToAnime = () => {
         prompt
       );
 
-      setResultImage(generatedImageUri);
+      setResultImage(generatedImageUri.imageUrl);
     } catch (error) {
       console.error("Failed to generate image:", error);
       Alert.alert(
