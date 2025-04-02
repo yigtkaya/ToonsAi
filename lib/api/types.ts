@@ -68,4 +68,6 @@ export interface ImageGenerationResponse {
   image: string; // base64 encoded image
   mime_type?: string;
   model: string;
+  text?: string | null; // Accompanying text description if provided by API
+  image_url?: string; // Publicly accessible URL of the generated image
 }

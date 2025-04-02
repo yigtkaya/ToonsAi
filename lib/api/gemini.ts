@@ -125,7 +125,7 @@ export const generateImage = async (
   prompt: string,
   description?: string, // keeping parameter for backward compatibility 
   mimeType: string = 'image/jpeg'
-): Promise<string> => {
+): Promise<{ imageUrl: string; text: string | null }> => {
   try {
     const base64Image = await imageToBase64(imageUri);
     
@@ -148,68 +148,33 @@ export const generateImage = async (
     console.log('Response structure:', {
       mimeType: response.data.mime_type,
       model: response.data.model,
+      hasImageUrl: !!response.data.image_url,
+      hasText: !!response.data.text,
       imageLength: response.data.image ? response.data.image.length : 0
     });
     
-    if (!response.data.image) {
-      throw new Error('No image data returned from the API');
+    let imageUrl: string;
+    
+    // If image_url is available, use it directly
+    if (response.data.image_url) {
+      console.log(`Using provided image URL: ${response.data.image_url}`);
+      imageUrl = response.data.image_url;
+    } else {
+      // Fallback to the original base64 approach if image_url is not provided
+      if (!response.data.image) {
+        throw new Error('No image data returned from the API');
+      }
+      
+      // For compatibility, still handle the base64 case
+      const responseMimeType = response.data.mime_type || 'image/jpeg';
+      imageUrl = `data:${responseMimeType};base64,${response.data.image}`;
+      console.log('Falling back to data URL from base64 image data');
     }
     
-    // Due to issues with file URIs on Android, we'll return the raw data URL directly
-    // This is more reliable across platforms
-    const responseMimeType = response.data.mime_type || 'image/jpeg';
-    
-    // Check if the image is too large for data URL handling (over 1MB)
-    // if (response.data.image.length > 1000000) {
-    //   console.log(`Image is large (${response.data.image.length} bytes), saving to file`);
-      
-    //   // Save large images to file to avoid rendering issues
-    //   const fileExtension = responseMimeType.includes('png') ? '.png' : '.jpg';
-    //   const filename = `gemini_image_${Date.now()}${fileExtension}`;
-    //   const filePath = `${FileSystem.cacheDirectory}${filename}`;
-      
-    //   try {
-    //     await FileSystem.writeAsStringAsync(filePath, response.data.image, {
-    //       encoding: FileSystem.EncodingType.Base64,
-    //     });
-        
-    //     console.log(`Large image saved to file: ${filePath}`);
-        
-    //     // Attempt to validate the image by reading it with ImageManipulator
-    //     try {
-    //       // Validate and optimize the image to ensure it's in a proper format
-    //       const result = await ImageManipulator.manipulateAsync(
-    //         filePath,
-    //         [], // No manipulations, just validate 
-    //         { compress: 1.0 } // Keep quality the same
-    //       );
-          
-    //       console.log(`Validated image format, using: ${result.uri}`);
-    //       return result.uri;
-    //     } catch (validationError) {
-    //       console.error('Image validation failed:', validationError);
-    //       console.log('Falling back to original file path');
-    //       // Continue with original file path
-    //       return filePath;
-    //     }
-    //   } catch (fileError) {
-    //     console.error('Failed to save large image to file:', fileError);
-    //     // Continue to data URL as fallback
-    //   }
-    // }
-    // For smaller images or if file saving failed, use data URL
-    const imageDataUrl = `data:${responseMimeType};base64,${response.data.image}`;
-    
-    console.log(`Created data URL (length: ${imageDataUrl.length})`);
-    console.log(`Image MIME type: ${responseMimeType}`);
-    
-    // Validate that the base64 data is valid
-    const isValidBase64 = response.data.image && /^[A-Za-z0-9+/=]+$/.test(response.data.image);
-    if (!isValidBase64) {
-      console.warn('Warning: Generated image may contain invalid base64 characters');
-    }
-    
-    return imageDataUrl;
+    return {
+      imageUrl,
+      text: response.data.text || null
+    };
     
   } catch (error) {
     console.error('Image generation failed:', error);
