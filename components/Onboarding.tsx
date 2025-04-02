@@ -29,16 +29,16 @@ type OnboardingItem = {
 const onboardingData: OnboardingItem[] = [
   {
     id: "1",
-    title: "Ghibli Style",
+    title: "Fantasia Style",
     description:
-      "Create whimsical scenes and characters with the iconic Ghibli aesthetic.",
+      "Create whimsical scenes and characters with the iconic magical aesthetic.",
     image: require("../assets/styles/ghibli.png"),
   },
   {
     id: "2",
-    title: "Pixar Style",
+    title: "Dreamworks Style",
     description:
-      "Bring your ideas to life with vibrant 3D Pixar-inspired animations.",
+      "Bring your ideas to life with vibrant 3D animation-inspired visuals.",
     image: require("../assets/styles/pixar.png"),
   },
   {
@@ -55,8 +55,8 @@ const onboardingData: OnboardingItem[] = [
   },
   {
     id: "5",
-    title: "Disney Style",
-    description: "Bring the magic of Disney to your creative ideas.",
+    title: "Enchanted Style",
+    description: "Bring the magic of classic animation to your creative ideas.",
     image: require("../assets/styles/disney.png"),
   },
   {

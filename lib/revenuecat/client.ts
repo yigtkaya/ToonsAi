@@ -19,12 +19,13 @@ const isUsingPlaceholderKeys =
 /**
  * Initialize RevenueCat with the appropriate API key
  * @param userId ID of the user for RevenueCat
+ * @returns Promise<boolean> indicating if initialization was successful
  */
-export const initializeRevenueCat = (userId: string | null): void => {
+export const initializeRevenueCat = async (userId: string | null): Promise<boolean> => {
   try {
     if (!REVENUECAT_IOS_API_KEY || !REVENUECAT_ANDROID_API_KEY) {
       console.warn("RevenueCat API keys are missing");
-      return;
+      return false;
     }
 
     // Skip initialization if using placeholder keys
@@ -32,7 +33,7 @@ export const initializeRevenueCat = (userId: string | null): void => {
       console.warn(
         "Using placeholder RevenueCat API keys - purchases will not work"
       );
-      return;
+      return true;
     }
 
     const apiKey =
@@ -48,8 +49,41 @@ export const initializeRevenueCat = (userId: string | null): void => {
 
     Purchases.configure(configuration);
     console.log("RevenueCat initialized with user ID:", userId);
+    return true;
   } catch (error) {
     console.error("Error initializing RevenueCat:", error);
+    return false;
+  }
+};
+
+/**
+ * Check if RevenueCat is initialized
+ * @returns Promise<boolean> indicating if RevenueCat is initialized
+ */
+export const isRevenueCatReady = async (): Promise<boolean> => {
+  try {
+    return await Purchases.isConfigured();
+  } catch (error) {
+    console.error("Error checking if RevenueCat is configured:", error);
+    return false;
+  }
+};
+
+/**
+ * Ensures RevenueCat is initialized before proceeding
+ * @returns Promise<boolean> indicating if RevenueCat is ready to use
+ */
+const ensureRevenueCatInitialized = async (): Promise<boolean> => {
+  try {
+    const isConfigured = await isRevenueCatReady();
+    if (!isConfigured) {
+      console.error("RevenueCat is not initialized. Call initializeRevenueCat() first.");
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error checking RevenueCat configuration:", error);
+    return false;
   }
 };
 
@@ -59,6 +93,11 @@ export const initializeRevenueCat = (userId: string | null): void => {
  */
 export const getCustomerInfo = async (): Promise<CustomerInfo | null> => {
   try {
+    // Check if RevenueCat is initialized
+    if (!await ensureRevenueCatInitialized()) {
+      return null;
+    }
+
     // If using placeholder keys, return a mock customer info
     if (isUsingPlaceholderKeys) {
       console.warn(
@@ -102,6 +141,11 @@ export const getPackages = async (
   offeringId: string = "default"
 ): Promise<PurchasesPackage[]> => {
   try {
+    // Check if RevenueCat is initialized
+    if (!await ensureRevenueCatInitialized()) {
+      return [];
+    }
+
     // If using placeholder keys, return mock packages
     if (isUsingPlaceholderKeys) {
       console.warn(
@@ -175,6 +219,11 @@ export const purchasePackage = async (
   pkg: PurchasesPackage
 ): Promise<CustomerInfo | null> => {
   try {
+    // Check if RevenueCat is initialized
+    if (!await ensureRevenueCatInitialized()) {
+      return null;
+    }
+
     // If using placeholder keys, simulate a successful purchase
     if (isUsingPlaceholderKeys) {
       console.warn("Simulating purchase with placeholder RevenueCat API keys");
@@ -243,6 +292,7 @@ export const purchasePackage = async (
  */
 export const hasActiveSubscription = async (): Promise<boolean> => {
   try {
+    // Check if RevenueCat is initialized (this will be checked in getCustomerInfo)
     const customerInfo = await getCustomerInfo();
 
     if (!customerInfo) return false;
@@ -264,6 +314,11 @@ export const updateRevenueCatUserId = async (
   userId: string
 ): Promise<boolean> => {
   try {
+    // Check if RevenueCat is initialized
+    if (!await ensureRevenueCatInitialized()) {
+      return false;
+    }
+
     await Purchases.logIn(userId);
     return true;
   } catch (error) {

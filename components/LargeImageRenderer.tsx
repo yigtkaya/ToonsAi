@@ -68,9 +68,39 @@ const LargeImageRenderer: React.FC<LargeImageRendererProps> = ({
 
       // For file URIs, check the size and compress if needed
       if (isFileUri) {
+        // Log the file URI for debugging
+        console.log(`Processing file URI: ${imageUri}`);
+
+        // Ensure the file has a proper extension
+        if (!imageUri.match(/\.(jpg|jpeg|png|gif)$/i)) {
+          console.log(
+            "File URI has no extension or unknown extension, adding .jpg extension"
+          );
+
+          // Create a copy with proper extension to ensure image format recognition
+          const newUri = `${FileSystem.cacheDirectory}image_${Date.now()}.jpg`;
+
+          try {
+            // Copy the file with a proper extension
+            await FileSystem.copyAsync({
+              from: imageUri,
+              to: newUri,
+            });
+            console.log(`Copied file to: ${newUri}`);
+            imageUri = newUri;
+          } catch (copyError) {
+            console.error(
+              "Failed to copy file with proper extension:",
+              copyError
+            );
+            // Continue with original URI as fallback
+          }
+        }
+
         const fileInfo = (await FileSystem.getInfoAsync(imageUri)) as FileInfo;
         if (fileInfo.exists) {
           const fileSizeMB = fileInfo.size / (1024 * 1024);
+          console.log(`File size: ${fileSizeMB.toFixed(2)}MB`);
 
           if (fileSizeMB > MAX_SIZE_MB) {
             console.log(
@@ -107,6 +137,8 @@ const LargeImageRenderer: React.FC<LargeImageRendererProps> = ({
 
             return result.uri;
           }
+        } else {
+          console.error(`File does not exist at path: ${imageUri}`);
         }
       }
       // For data URLs, we might need to parse and compress the base64 (complex, less efficient)
@@ -161,27 +193,41 @@ const LargeImageRenderer: React.FC<LargeImageRendererProps> = ({
 
       if (isFileUri) {
         setImageInfo(`File URI (length: ${source.length})`);
+        console.log(`Processing image source: ${source}`);
+
+        // Check if file has a proper image extension
+        const hasProperExtension = source.match(/\.(jpg|jpeg|png|gif)$/i);
+        console.log(`Has proper extension: ${Boolean(hasProperExtension)}`);
 
         // Get file information
         try {
           const fileInfo = (await FileSystem.getInfoAsync(source)) as FileInfo;
+
           if (fileInfo.exists) {
             const fileSizeMB = fileInfo.size / (1024 * 1024);
             setImageInfo(`File URI - Size: ${fileSizeMB.toFixed(2)}MB`);
+            console.log(`File exists, size: ${fileSizeMB.toFixed(2)}MB`);
 
-            // If the file is very large, optimize it for display
-            if (fileSizeMB > 2) {
+            // If the file is very large or has no proper extension, optimize it for display
+            if (fileSizeMB > 2 || !hasProperExtension) {
+              console.log("Optimizing image due to size or extension issues");
               const optimized = await optimizeImage(source);
               if (isMounted) setOptimizedSource(optimized);
             } else {
               if (isMounted) setOptimizedSource(source);
             }
           } else {
+            console.error(`File does not exist at path: ${source}`);
             setImageInfo("File URI - File does not exist");
             setError("Image file not found");
           }
         } catch (err) {
           console.error("Error getting file info:", err);
+          setError(
+            `File info error: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
         }
       } else if (isDataUrl) {
         const dataSize = source.length / (1024 * 1024);
@@ -196,8 +242,19 @@ const LargeImageRenderer: React.FC<LargeImageRendererProps> = ({
           if (isMounted) setOptimizedSource(source);
         }
       } else {
+        console.warn(
+          `Unrecognized image format: ${source.substring(0, 100)}...`
+        );
         setImageInfo(`Unknown format (length: ${source.length})`);
-        if (isMounted) setOptimizedSource(source);
+
+        // Try to handle as a file URI by adding file:// prefix if needed
+        if (source.startsWith("/")) {
+          const fileUri = `file://${source}`;
+          console.log(`Attempting to treat as file URI: ${fileUri}`);
+          if (isMounted) setOptimizedSource(fileUri);
+        } else {
+          if (isMounted) setOptimizedSource(source);
+        }
       }
     };
 
@@ -213,9 +270,49 @@ const LargeImageRenderer: React.FC<LargeImageRendererProps> = ({
     setLoading(true);
 
     try {
-      const optimized = await optimizeImage(source);
-      setOptimizedSource(optimized);
+      // More aggressive approach to ensure the image loads
+      if (isFileUri) {
+        // For file URIs, try to create a new file with a proper extension
+        const newUri = `${
+          FileSystem.cacheDirectory
+        }retry_image_${Date.now()}.jpg`;
+        console.log(`Retry: Creating new image at: ${newUri}`);
+
+        try {
+          // First try copy (faster)
+          await FileSystem.copyAsync({
+            from: source,
+            to: newUri,
+          });
+        } catch (copyError) {
+          console.log("Copy failed, trying to read and write file:", copyError);
+
+          // If copy fails, try reading and writing the file
+          const fileContent = await FileSystem.readAsStringAsync(source, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          await FileSystem.writeAsStringAsync(newUri, fileContent, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        }
+
+        // Use ImageManipulator to ensure the format is correct
+        const result = await ImageManipulator.manipulateAsync(
+          newUri,
+          [{ resize: { width: 600 } }], // Resize to reasonable dimensions
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+        );
+
+        console.log(`Successfully created optimized image: ${result.uri}`);
+        setOptimizedSource(result.uri);
+      } else {
+        // For other sources, just try the normal optimization
+        const optimized = await optimizeImage(source);
+        setOptimizedSource(optimized);
+      }
     } catch (err) {
+      console.error("Retry failed:", err);
       setError(
         `Failed to process image: ${
           err instanceof Error ? err.message : String(err)
@@ -252,9 +349,49 @@ const LargeImageRenderer: React.FC<LargeImageRendererProps> = ({
             console.error(
               "Image loading error:",
               errorMessage,
-              "Source type:",
-              isFileUri ? "file URI" : isDataUrl ? "data URL" : "unknown"
+              "\nSource type:",
+              isFileUri ? "file URI" : isDataUrl ? "data URL" : "unknown",
+              "\nSource URI (partial):",
+              optimizedSource?.substring(0, 100) + "...",
+              "\nURI length:",
+              optimizedSource?.length
             );
+
+            // Check if we might be dealing with a format issue
+            if (
+              errorMessage.includes("unknown") ||
+              errorMessage.includes("format")
+            ) {
+              // Try making a copy with a specific format
+              const tryWithFormat = async () => {
+                try {
+                  if (isFileUri) {
+                    // Try to create a new validated jpg copy
+                    const newUri = `${
+                      FileSystem.cacheDirectory
+                    }retry_image_${Date.now()}.jpg`;
+                    console.log(
+                      `Attempting recovery by creating new image at: ${newUri}`
+                    );
+
+                    await FileSystem.copyAsync({
+                      from: optimizedSource,
+                      to: newUri,
+                    });
+
+                    // Set this as our new source
+                    setOptimizedSource(newUri);
+                    return;
+                  }
+                } catch (retryErr) {
+                  console.error("Recovery attempt failed:", retryErr);
+                }
+              };
+
+              // Run recovery attempt
+              tryWithFormat();
+            }
+
             setError(errorMessage);
             setLoading(false);
           }}

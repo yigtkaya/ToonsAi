@@ -41,7 +41,7 @@ interface AnimeStyle {
 const animeStyles: AnimeStyle[] = [
   {
     id: "ghibli",
-    name: "Ghibli",
+    name: "Fantasia",
     image: require("../assets/styles/ghibli.png"),
     requiresPro: false,
   },
@@ -53,7 +53,7 @@ const animeStyles: AnimeStyle[] = [
   },
   {
     id: "pixar",
-    name: "Pixar / 3D Animation",
+    name: "Dreamworks / 3D Animation",
     image: require("../assets/styles/pixar.png"),
     requiresPro: true,
   },
@@ -65,7 +65,7 @@ const animeStyles: AnimeStyle[] = [
   },
   {
     id: "vintage_disney",
-    name: "Vintage Disney Style",
+    name: "Enchanted Classic Style",
     image: require("../assets/styles/disney.png"),
     requiresPro: true,
   },

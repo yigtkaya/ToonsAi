@@ -26,7 +26,12 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useUser } from "@/lib/auth/UserContext";
-import { purchasePackage } from "@/lib/revenuecat/client";
+import {
+  initializeRevenueCat,
+  getPackages,
+  purchasePackage,
+  isRevenueCatReady,
+} from "@/lib/revenuecat/client";
 
 // Check if we're using placeholder API keys
 const isUsingPlaceholderKeys =
@@ -48,7 +53,7 @@ const features: PlanFeature[] = [
   { icon: "ban", text: "Ad-free experience" },
 ];
 
-// Mock data for consistent display
+// Mock data for fallback or development mode
 const MOCK_PACKAGES: PurchasesPackage[] = [
   {
     identifier: "toonsai_weekly",
@@ -107,7 +112,7 @@ const getPlatformTermsText = (platform: string) => {
 };
 
 export default function PaywallScreen() {
-  const { hasSubscription, checkSubscription } = useUser();
+  const { hasSubscription, checkSubscription, user } = useUser();
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
@@ -115,6 +120,7 @@ export default function PaywallScreen() {
   const [error, setError] = useState<string | null>(null);
   const [usingMockData, setUsingMockData] = useState(false);
   const [showCloseButton, setShowCloseButton] = useState(false);
+  const [revenueCatInitialized, setRevenueCatInitialized] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams<{ showOnStart?: string }>();
   const showOnStart = params.showOnStart === "true";
@@ -129,9 +135,32 @@ export default function PaywallScreen() {
     ...styles.header,
   };
 
+  // Initialize RevenueCat when component mounts
   useEffect(() => {
-    // Fetch subscription packages
-    fetchPackages();
+    const initRevenueCat = async () => {
+      try {
+        // Check if RevenueCat is already initialized
+        const isReady = await isRevenueCatReady();
+        if (!isReady && user) {
+          // Initialize RevenueCat with the current user ID
+          await initializeRevenueCat(user.id);
+        }
+        setRevenueCatInitialized(true);
+
+        // Now fetch packages
+        fetchPackages();
+      } catch (err) {
+        console.error("Failed to initialize RevenueCat:", err);
+        setRevenueCatInitialized(false);
+        // Fallback to mock data
+        setPackages(MOCK_PACKAGES);
+        setSelectedPackage("toonsai_yearly");
+        setUsingMockData(true);
+        setLoading(false);
+      }
+    };
+
+    initRevenueCat();
 
     // If shown on startup, delay the close button more
     const closeButtonDelay = showOnStart ? 7000 : 5000;
@@ -159,22 +188,41 @@ export default function PaywallScreen() {
 
       return () => backHandler.remove();
     }
-  }, [showCloseButton, showOnStart]);
+  }, [showCloseButton, showOnStart, user]);
 
   const fetchPackages = async () => {
     try {
       setLoading(true);
       setError(null);
-      setUsingMockData(true);
 
-      // Always use mock packages for consistent display
-      setPackages(MOCK_PACKAGES);
-      setSelectedPackage("toonsai_yearly"); // Default to yearly plan
+      // Try to get packages from RevenueCat
+      if (isUsingPlaceholderKeys) {
+        console.log("Using mock packages due to placeholder API keys");
+        setPackages(MOCK_PACKAGES);
+        setUsingMockData(true);
+      } else {
+        // Use our client to get packages
+        const fetchedPackages = await getPackages();
+
+        if (fetchedPackages && fetchedPackages.length > 0) {
+          console.log("Successfully fetched packages from RevenueCat");
+          setPackages(fetchedPackages);
+          setUsingMockData(false);
+        } else {
+          console.warn("No packages returned from RevenueCat, using mock data");
+          setPackages(MOCK_PACKAGES);
+          setUsingMockData(true);
+        }
+      }
+
+      // Default to yearly plan
+      setSelectedPackage("toonsai_yearly");
     } catch (err) {
-      console.error("Error in fetchPackages:", err);
+      console.error("Error fetching packages:", err);
       // Fallback to mock data
       setPackages(MOCK_PACKAGES);
       setSelectedPackage("toonsai_yearly");
+      setUsingMockData(true);
     } finally {
       setLoading(false);
     }
@@ -197,12 +245,12 @@ export default function PaywallScreen() {
         return;
       }
 
-      if (isUsingPlaceholderKeys || usingMockData) {
-        // Use our custom purchase function that handles mock data
-        await purchasePackage(packageToPurchase);
-      } else {
-        // Use the actual RevenueCat purchase
-        await Purchases.purchasePackage(packageToPurchase);
+      // Use our custom purchase function which handles both real and mock purchases
+      const customerInfo = await purchasePackage(packageToPurchase);
+
+      if (!customerInfo) {
+        setError("Purchase failed. Please try again.");
+        return;
       }
 
       // Update subscription status
@@ -400,7 +448,9 @@ export default function PaywallScreen() {
           {usingMockData && (
             <View style={styles.devModeContainer}>
               <Text style={styles.devModeText}>
-                Development Mode: Using mock subscription data
+                {isUsingPlaceholderKeys
+                  ? "Using placeholder subscription data (API keys not configured)"
+                  : "Using mock subscription data (API error)"}
               </Text>
             </View>
           )}

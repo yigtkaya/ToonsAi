@@ -22,8 +22,8 @@ export const STYLE_OPTIONS: StyleOption[] = [
   },
   {
     id: "pixar",
-    name: "Pixar / 3D Animation",
-    description: "Soft, rounded features with Pixar-style realism",
+    name: "Dreamworks / 3D Animation",
+    description: "Soft, rounded features with cinematic 3D-style realism",
     requiresPro: true,
     imagePath: require("@/assets/styles/pixar.png"),
   },
@@ -36,8 +36,8 @@ export const STYLE_OPTIONS: StyleOption[] = [
   },
   {
     id: "vintage_disney",
-    name: "Vintage Disney Style",
-    description: "Classic hand-drawn look (e.g., Snow White, Bambi)",
+    name: "Enchanted Classic Style",
+    description: "Classic hand-drawn look (e.g., vintage fairy tales)",
     requiresPro: true,
     imagePath: require("@/assets/styles/vintage_disney.png"),
   },
@@ -57,8 +57,8 @@ export const STYLE_OPTIONS: StyleOption[] = [
   },
   {
     id: "ghibli",
-    name: "Ghibli",
-    description: "Inspired by Studio Ghibli's distinctive aesthetic",
+    name: "Fantasia",
+    description: "Inspired by magical animation with a distinctive aesthetic",
     requiresPro: false,
     imagePath: require("@/assets/styles/ghibli.png"),
   },

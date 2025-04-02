@@ -9,6 +9,7 @@ import {
   ImageGenerationRequest,
   ImageGenerationResponse
 } from './types';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 /**
  * Converts an image file to base64 encoding
@@ -159,27 +160,43 @@ export const generateImage = async (
     const responseMimeType = response.data.mime_type || 'image/jpeg';
     
     // Check if the image is too large for data URL handling (over 1MB)
-    if (response.data.image.length > 1000000) {
-      console.log(`Image is large (${response.data.image.length} bytes), saving to file`);
+    // if (response.data.image.length > 1000000) {
+    //   console.log(`Image is large (${response.data.image.length} bytes), saving to file`);
       
-      // Save large images to file to avoid rendering issues
-      const fileExtension = responseMimeType.includes('png') ? '.png' : '.jpg';
-      const filename = `gemini_image_${Date.now()}${fileExtension}`;
-      const filePath = `${FileSystem.cacheDirectory}${filename}`;
+    //   // Save large images to file to avoid rendering issues
+    //   const fileExtension = responseMimeType.includes('png') ? '.png' : '.jpg';
+    //   const filename = `gemini_image_${Date.now()}${fileExtension}`;
+    //   const filePath = `${FileSystem.cacheDirectory}${filename}`;
       
-      try {
-        await FileSystem.writeAsStringAsync(filePath, response.data.image, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
+    //   try {
+    //     await FileSystem.writeAsStringAsync(filePath, response.data.image, {
+    //       encoding: FileSystem.EncodingType.Base64,
+    //     });
         
-        console.log(`Large image saved to file: ${filePath}`);
-        return filePath;
-      } catch (fileError) {
-        console.error('Failed to save large image to file:', fileError);
-        // Continue to data URL as fallback
-      }
-    }
-    
+    //     console.log(`Large image saved to file: ${filePath}`);
+        
+    //     // Attempt to validate the image by reading it with ImageManipulator
+    //     try {
+    //       // Validate and optimize the image to ensure it's in a proper format
+    //       const result = await ImageManipulator.manipulateAsync(
+    //         filePath,
+    //         [], // No manipulations, just validate 
+    //         { compress: 1.0 } // Keep quality the same
+    //       );
+          
+    //       console.log(`Validated image format, using: ${result.uri}`);
+    //       return result.uri;
+    //     } catch (validationError) {
+    //       console.error('Image validation failed:', validationError);
+    //       console.log('Falling back to original file path');
+    //       // Continue with original file path
+    //       return filePath;
+    //     }
+    //   } catch (fileError) {
+    //     console.error('Failed to save large image to file:', fileError);
+    //     // Continue to data URL as fallback
+    //   }
+    // }
     // For smaller images or if file saving failed, use data URL
     const imageDataUrl = `data:${responseMimeType};base64,${response.data.image}`;
     
